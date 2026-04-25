@@ -578,6 +578,11 @@ tr:hover td{background:rgba(13,148,136,.025)}
         <button style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer" onclick="appClearSearch()">×</button>
       </div>
     </div>
+    <div id="draft-bar" style="display:none;padding:6px 14px;background:rgba(233,30,140,0.06);border-bottom:1px solid rgba(233,30,140,0.12)">
+      <button onclick="openDraftPanel()" style="font-size:12px;font-weight:700;color:#e91e8c;background:rgba(233,30,140,0.10);border:1px solid rgba(233,30,140,0.2);border-radius:20px;padding:5px 14px;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:6px">
+        📋 <span id="draft-bar-label">Lihat Draft Pesanan</span>
+      </button>
+    </div>
     <div class="cat-scroll" id="app-cat-scroll"></div>
     <div class="menu-grid" id="app-menu-grid"></div>
   </div>
@@ -814,7 +819,10 @@ tr:hover td{background:rgba(13,148,136,.025)}
     <div class="drawer-handle"></div>
     <div class="drawer-head">
       <span class="drawer-title">Keranjang</span>
-      <button style="font-size:12px;color:var(--red);background:none;border:none;cursor:pointer" onclick="clearCart()">Kosongkan</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button style="font-size:12px;color:#e91e8c;background:rgba(233,30,140,0.08);border:1px solid rgba(233,30,140,0.2);border-radius:8px;padding:5px 10px;cursor:pointer;font-weight:700" onclick="saveDraft()">📋 Simpan Draft</button>
+        <button style="font-size:12px;color:var(--red);background:none;border:none;cursor:pointer" onclick="clearCart()">Kosongkan</button>
+      </div>
     </div>
     <div class="cart-items" id="app-cart-items"></div>
     <div class="drawer-footer">
@@ -843,6 +851,17 @@ tr:hover td{background:rgba(13,148,136,.025)}
       </div>
       <button class="btn-primary" onclick="prosesTransaksi()">PROSES TRANSAKSI</button>
     </div>
+  </div>
+</div>
+
+<!-- DRAFT PANEL -->
+<div class="modal-overlay" id="draft-panel" style="z-index:95" onclick="if(event.target===this)closeDraftPanel()">
+  <div class="modal-box" style="text-align:left;max-width:420px;padding:24px 20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-family:var(--font-head);font-size:18px;font-weight:800">📋 Draft Pesanan</div>
+      <button onclick="closeDraftPanel()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3)">✕</button>
+    </div>
+    <div id="draft-list" style="display:flex;flex-direction:column;gap:10px;max-height:60vh;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -1044,12 +1063,12 @@ function selectIcon(cid, hid, ic) {
 // ══════════════════════════════════════════════════════
 async function init() {
   try {
-    allGerais = await sb.query('gerais', { select: '*', filter: { 'aktif=eq.': 'true' }, order: 'created_at.asc' });
+    // Satu query untuk warm-up koneksi sekaligus ambil data gerai
+    allGerais = await sb.query('gerais', { select: 'id,nama,jenis,logo_url,aktif', filter: { 'aktif=eq.': 'true' }, order: 'created_at.asc' });
     renderStoreCards();
   } catch(e) {
     console.error('Init error:', e);
-    showToast('Gagal memuat data gerai', 'error');
-    renderStoreCards();
+    document.getElementById('store-cards-container').innerHTML = '<div style="text-align:center;padding:20px;color:var(--red);grid-column:1/-1;font-size:13px">⚠️ Gagal terhubung ke server.<br>Periksa koneksi internet lalu refresh.</div>';
   }
   showScreen('screen-store');
 }
@@ -1097,27 +1116,15 @@ async function doLogin() {
   btn.disabled = true; btn.textContent = 'Memuat...';
 
   try {
-    // Cari user berdasarkan username + gerai_id
-    let users = await sb.query('users', {
-      select: '*',
-      filter: {
-        'username=eq.': u,
-        'gerai_id=eq.': selectedGeraiId
-      }
-    });
-
-    // Admin bisa login ke semua gerai
-    if(!users.length) {
-      users = await sb.query('users', {
-        select: '*',
-        filter: { 'username=eq.': u, 'role=eq.': 'admin' }
-      });
-    }
-
+    // Parallelkan: cari user di gerai + admin sekaligus
+    const [usersGerai, usersAdmin] = await Promise.all([
+      sb.query('users', { select: '*', filter: { 'username=eq.': u, 'gerai_id=eq.': selectedGeraiId } }),
+      sb.query('users', { select: '*', filter: { 'username=eq.': u, 'role=eq.': 'admin' } })
+    ]);
+    const users = usersGerai.length ? usersGerai : usersAdmin;
     if(!users.length) { showToast('Username tidak ditemukan!', 'error'); return; }
 
     const user = users[0];
-    // Simple password check (plaintext — in production use bcrypt via edge function)
     if(user.password !== p) { showToast('Password salah!', 'error'); return; }
 
     currentUser = user;
@@ -1356,36 +1363,38 @@ async function loadApp() {
   showLoading();
   try {
     const geraiId = currentGerai?.id || currentUser.gerai_id;
-    if(geraiId) {
-      allProduk = await sb.query('produk', {
-        select: '*',
-        filter: { 'gerai_id=eq.': geraiId, 'aktif=eq.': 'true' },
-        order: 'created_at.asc'
-      });
-    }
 
-    // Setup topbar
+    // Setup UI dulu — tampil cepat tanpa tunggu data
     document.getElementById('app-store-badge').textContent = (STORE_EMOJI[currentGerai?.jenis]||'🏪') + ' ' + (currentGerai?.nama || 'Gerai');
     document.getElementById('app-topbar-user').textContent = (currentUser.nama||currentUser.username) + ' (' + currentUser.role + ')';
-
-    // Bottom nav
     renderBottomNav();
-
-    // Init page
     goPage('kasir');
     showScreen('screen-app');
+    hideLoading(); // Hilangkan loading spinner — UI sudah tampil
 
-    // Check low stock
+    // Fetch semua data paralel di background
+    if(geraiId) {
+      showToast('Memuat produk...', '');
+      const [produk] = await Promise.all([
+        sb.query('produk', {
+          select: '*',
+          filter: { 'gerai_id=eq.': geraiId, 'aktif=eq.': 'true' },
+          order: 'sold.desc' // urutkan terlaris dulu — lebih relevan
+        }),
+      ]);
+      allProduk = produk;
+    }
+
+    renderMenuGrid();
     checkLowStock();
-
-    // Check pending requests for owner
-    if(currentUser.role === 'owner') checkPendingRequests();
-
-    showToast('Selamat datang, ' + (currentUser.nama||currentUser.username) + '!', 'success');
+    updateDraftBar();
+    if(currentUser.role === 'owner' || currentUser.role === 'multi') checkPendingRequests();
+    showToast('Selamat datang, ' + (currentUser.nama||currentUser.username) + '! 👋', 'success');
   } catch(e) {
     showToast('Gagal memuat aplikasi: ' + e.message, 'error');
     console.error(e);
-  } finally { hideLoading(); }
+    hideLoading();
+  }
 }
 
 function renderBottomNav() {
@@ -1485,6 +1494,125 @@ function setCartQty(id, val) {
 }
 
 function clearCart() { cart = {}; updateFAB(); closeCart(); renderKasir(); }
+
+/* ══════ DRAFT PESANAN ══════ */
+function getDrafts() {
+  try { return JSON.parse(localStorage.getItem('itungaju_drafts_' + (currentGerai?.id||'')) || '[]'); }
+  catch(e) { return []; }
+}
+function saveDrafts(drafts) {
+  localStorage.setItem('itungaju_drafts_' + (currentGerai?.id||''), JSON.stringify(drafts));
+}
+
+function saveDraft() {
+  const items = Object.keys(cart);
+  if(!items.length) { showToast('Keranjang kosong!', 'error'); return; }
+  const disc = parseFloat(document.getElementById('cart-disc').value) || 0;
+  const payMethod = document.querySelector('.pay-btn.active')?.textContent?.trim() || 'Tunai';
+  const label = prompt('Nama draft (opsional, tekan OK untuk skip):', '') ?? '';
+  const draft = {
+    id: Date.now().toString(),
+    label: label.trim() || ('Pesanan ' + new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})),
+    cart: {...cart},
+    disc,
+    payMethod,
+    savedAt: new Date().toISOString(),
+    items: Object.keys(cart).map(id => {
+      const p = allProduk.find(x => x.id === id);
+      return p ? {id, nama: p.nama, qty: cart[id], harga: p.harga_jual} : null;
+    }).filter(Boolean)
+  };
+  const drafts = getDrafts();
+  drafts.unshift(draft);
+  // Max 10 draft
+  if(drafts.length > 10) drafts.pop();
+  saveDrafts(drafts);
+  clearCart();
+  updateDraftBar();
+  showToast('Draft "' + draft.label + '" disimpan ✓', 'success');
+}
+
+function loadDraft(draftId) {
+  const drafts = getDrafts();
+  const draft = drafts.find(d => d.id === draftId);
+  if(!draft) { showToast('Draft tidak ditemukan', 'error'); return; }
+  // Load cart dari draft
+  cart = {...draft.cart};
+  // Set diskon
+  setTimeout(() => {
+    const discEl = document.getElementById('cart-disc');
+    if(discEl) discEl.value = draft.disc || 0;
+    updateCartTotal();
+    updateFAB();
+    renderKasir();
+    closeDraftPanel();
+    openCart();
+    showToast('Draft "' + draft.label + '" dilanjutkan ✓', 'success');
+  }, 100);
+}
+
+function deleteDraft(draftId) {
+  const drafts = getDrafts();
+  const draft = drafts.find(d => d.id === draftId);
+  showConfirm('Hapus draft "' + (draft?.label||'ini') + '"?', () => {
+    const newDrafts = drafts.filter(d => d.id !== draftId);
+    saveDrafts(newDrafts);
+    updateDraftBar();
+    renderDraftList();
+    showToast('Draft dihapus', 'success');
+  });
+}
+
+function updateDraftBar() {
+  const drafts = getDrafts();
+  const bar = document.getElementById('draft-bar');
+  const label = document.getElementById('draft-bar-label');
+  if(!bar) return;
+  if(drafts.length > 0) {
+    bar.style.display = 'block';
+    if(label) label.textContent = drafts.length + ' Draft Tersimpan — Tap untuk lihat';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function openDraftPanel() {
+  renderDraftList();
+  document.getElementById('draft-panel').classList.add('open');
+}
+
+function closeDraftPanel() {
+  document.getElementById('draft-panel').classList.remove('open');
+}
+
+function renderDraftList() {
+  const drafts = getDrafts();
+  const el = document.getElementById('draft-list');
+  if(!el) return;
+  if(!drafts.length) {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Belum ada draft tersimpan</div>';
+    return;
+  }
+  el.innerHTML = drafts.map(d => {
+    const total = d.items.reduce((s,i) => s + i.harga * i.qty, 0) - (d.disc||0);
+    const timeStr = new Date(d.savedAt).toLocaleString('id-ID', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const itemStr = d.items.map(i => i.qty + 'x ' + i.nama).join(', ');
+    return \`<div style="background:var(--bg2);border:1.5px solid var(--border2);border-radius:16px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--font-head)">\${d.label}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">⏰ \${timeStr}</div>
+        </div>
+        <div style="font-size:15px;font-weight:800;color:#e91e8c;font-family:var(--font-head)">\${rp(total)}</div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.5">\${itemStr}</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-action btn-teal btn-sm" style="flex:1" onclick="loadDraft('\${d.id}')">▶ Lanjutkan</button>
+        <button class="btn-action btn-red btn-xs" onclick="deleteDraft('\${d.id}')">🗑️</button>
+      </div>
+    </div>\`;
+  }).join('');
+}
 
 function cartTotal() {
   return Object.keys(cart).reduce((s, id) => {
