@@ -1496,82 +1496,112 @@ function setCartQty(id, val) {
 
 function clearCart() { cart = {}; updateFAB(); closeCart(); renderKasir(); }
 
-/* ══════ DRAFT PESANAN ══════ */
-function saveDraft() {
-  const items = Object.keys(cart);
-  if(!items.length) { showToast('Keranjang kosong!', 'error'); return; }
+/* ══════════════════════════════════════════════════
+   DRAFT PESANAN — Supabase
+   ══════════════════════════════════════════════════ */
+
+async function saveDraft() {
+  if(!Object.keys(cart).length) { showToast('Keranjang kosong!', 'error'); return; }
   const disc = parseFloat(document.getElementById('cart-disc').value) || 0;
-  const payMethod = document.querySelector('.pay-btn.active')?.textContent?.trim() || 'Tunai';
-  const label = prompt('Nama draft (opsional, tekan OK untuk skip):', '') ?? '';
-  const draft = {
-    id: Date.now().toString(),
-    label: label.trim() || ('Pesanan ' + new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})),
-    cart: {...cart},
-    disc,
-    payMethod,
-    savedAt: new Date().toISOString(),
-    items: Object.keys(cart).map(id => {
-      const p = allProduk.find(x => x.id === id);
-      return p ? {id, nama: p.nama, qty: cart[id], harga: p.harga_jual} : null;
-    }).filter(Boolean)
-  };
-  const drafts = getDrafts();
-  drafts.unshift(draft);
-  // Max 10 draft
-  if(drafts.length > 10) drafts.pop();
-  saveDrafts(drafts);
-  clearCart();
-  updateDraftBar();
-  showToast('Draft "' + draft.label + '" disimpan ✓', 'success');
+  const raw = prompt('Nama pesanan (opsional, Enter untuk skip):', '');
+  if(raw === null) return;
+  const label = raw.trim() || ('Pesanan ' + new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'}));
+  const cartItems = Object.keys(cart).map(function(id) {
+    var p = allProduk.find(function(x){ return x.id === id; });
+    return p ? {id: id, nama: p.nama, qty: cart[id], harga: p.harga_jual} : null;
+  }).filter(Boolean);
+  showLoading();
+  try {
+    await sb.insert('drafts', {
+      gerai_id: currentGerai.id,
+      user_id: currentUser.id,
+      label: label,
+      cart_data: cart,
+      disc: disc,
+      items: cartItems
+    });
+    clearCart();
+    await updateDraftBar();
+    showToast('Draft "' + label + '" disimpan ✓', 'success');
+  } catch(e) {
+    showToast('Gagal simpan draft: ' + e.message, 'error');
+    console.error('saveDraft error:', e);
+  } finally { hideLoading(); }
 }
 
-function loadDraft(draftId) {
-  const drafts = getDrafts();
-  const draft = drafts.find(d => d.id === draftId);
+async function loadDraft(draftId) {
+  var draft = _drafts.find(function(d){ return d.id === draftId; });
   if(!draft) { showToast('Draft tidak ditemukan', 'error'); return; }
-  // Load cart dari draft
-  cart = {...draft.cart};
-  // Set diskon
-  setTimeout(() => {
-    const discEl = document.getElementById('cart-disc');
+  cart = Object.assign({}, draft.cart_data || {});
+  closeDraftPanel();
+  await updateDraftBar();
+  setTimeout(function() {
+    var discEl = document.getElementById('cart-disc');
     if(discEl) discEl.value = draft.disc || 0;
     updateCartTotal();
     updateFAB();
     renderKasir();
-    closeDraftPanel();
     openCart();
     showToast('Draft "' + draft.label + '" dilanjutkan ✓', 'success');
-  }, 100);
+  }, 150);
 }
 
 function deleteDraft(draftId) {
-  const drafts = getDrafts();
-  const draft = drafts.find(d => d.id === draftId);
-  showConfirm('Hapus draft "' + (draft?.label||'ini') + '"?', () => {
-    const newDrafts = drafts.filter(d => d.id !== draftId);
-    saveDrafts(newDrafts);
-    updateDraftBar();
-    renderDraftList();
-    showToast('Draft dihapus', 'success');
+  var draft = _drafts.find(function(d){ return d.id === draftId; });
+  var nama = draft ? draft.label : 'ini';
+  showConfirm('Hapus draft "' + nama + '"?', async function() {
+    showLoading();
+    try {
+      await sb.delete('drafts', {'id=eq.': draftId});
+      _drafts = _drafts.filter(function(d){ return d.id !== draftId; });
+      await updateDraftBar();
+      renderDraftList();
+      showToast('Draft dihapus ✓', 'success');
+    } catch(e) {
+      showToast('Gagal hapus: ' + e.message, 'error');
+    } finally { hideLoading(); }
   });
 }
 
-function updateDraftBar() {
-  const drafts = getDrafts();
-  const bar = document.getElementById('draft-bar');
-  const label = document.getElementById('draft-bar-label');
+async function updateDraftBar() {
+  try {
+    _drafts = await sb.query('drafts', {
+      select: '*',
+      filter: {'gerai_id=eq.': currentGerai.id},
+      order: 'created_at.desc',
+      limit: 20
+    });
+  } catch(e) {
+    console.warn('updateDraftBar failed:', e);
+    _drafts = [];
+  }
+  var bar = document.getElementById('draft-bar');
+  var labelEl = document.getElementById('draft-bar-label');
   if(!bar) return;
-  if(drafts.length > 0) {
+  if(_drafts.length > 0) {
     bar.style.display = 'block';
-    if(label) label.textContent = drafts.length + ' Draft Tersimpan — Tap untuk lihat';
+    if(labelEl) labelEl.textContent = _drafts.length + ' Draft Tersimpan — Tap untuk lihat';
   } else {
     bar.style.display = 'none';
   }
 }
 
-function openDraftPanel() {
-  renderDraftList();
+async function openDraftPanel() {
   document.getElementById('draft-panel').classList.add('open');
+  var el = document.getElementById('draft-list');
+  if(el) el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">⏳ Memuat...</div>';
+  try {
+    _drafts = await sb.query('drafts', {
+      select: '*',
+      filter: {'gerai_id=eq.': currentGerai.id},
+      order: 'created_at.desc',
+      limit: 20
+    });
+  } catch(e) {
+    _drafts = [];
+    console.error('openDraftPanel error:', e);
+  }
+  renderDraftList();
 }
 
 function closeDraftPanel() {
@@ -1579,34 +1609,34 @@ function closeDraftPanel() {
 }
 
 function renderDraftList() {
-  const drafts = getDrafts();
-  const el = document.getElementById('draft-list');
+  var el = document.getElementById('draft-list');
   if(!el) return;
-  if(!drafts.length) {
-    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Belum ada draft tersimpan</div>';
+  if(!_drafts.length) {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">📋 Belum ada draft tersimpan</div>';
     return;
   }
-  el.innerHTML = _drafts.map(d => {
-    const items = d.items || [];
-    const total = items.reduce((s,i) => s + i.harga * i.qty, 0) - (d.disc||0);
-    const timeStr = new Date(d.created_at).toLocaleString('id-ID', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-    const itemStr = items.map(i => i.qty + 'x ' + i.nama).join(', ');
-    return '<div style="background:var(--bg2);border:1.5px solid var(--border2);border-radius:16px;padding:14px">' +
+  el.innerHTML = _drafts.map(function(d) {
+    var items = d.items || [];
+    var total = items.reduce(function(s,i){ return s + (i.harga||0)*(i.qty||0); }, 0) - (d.disc||0);
+    var timeStr = new Date(d.created_at).toLocaleString('id-ID', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    var itemStr = items.map(function(i){ return i.qty+'x '+i.nama; }).join(', ') || '-';
+    return '<div style="background:var(--bg2);border:1.5px solid var(--border2);border-radius:16px;padding:14px;margin-bottom:2px">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">' +
         '<div>' +
-          '<div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--font-head)">' + d.label + '</div>' +
+          '<div style="font-size:14px;font-weight:700;color:var(--text)">' + d.label + '</div>' +
           '<div style="font-size:10px;color:var(--text3);margin-top:2px">⏰ ' + timeStr + '</div>' +
         '</div>' +
-        '<div style="font-size:15px;font-weight:800;color:#e91e8c;font-family:var(--font-head)">' + rp(total) + '</div>' +
+        '<div style="font-size:15px;font-weight:800;color:#e91e8c">' + rp(total) + '</div>' +
       '</div>' +
       '<div style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.5">' + itemStr + '</div>' +
       '<div style="display:flex;gap:8px">' +
         '<button class="btn-action btn-teal btn-sm" style="flex:1" onclick="loadDraft(\'' + d.id + '\')">▶ Lanjutkan</button>' +
-        '<button class="btn-action btn-red btn-xs" onclick="deleteDraft(\'' + d.id + '\')">🗑️</button>' +
+        '<button class="btn-action btn-red btn-xs" onclick="deleteDraft(\'' + d.id + '\')">🗑️ Hapus</button>' +
       '</div>' +
     '</div>';
   }).join('');
 }
+
 
 function cartTotal() {
   return Object.keys(cart).reduce((s, id) => {
