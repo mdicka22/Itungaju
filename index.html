@@ -1497,14 +1497,6 @@ function setCartQty(id, val) {
 function clearCart() { cart = {}; updateFAB(); closeCart(); renderKasir(); }
 
 /* ══════ DRAFT PESANAN ══════ */
-function getDrafts() {
-  try { return JSON.parse(localStorage.getItem('itungaju_drafts_' + (currentGerai?.id||'')) || '[]'); }
-  catch(e) { return []; }
-}
-function saveDrafts(drafts) {
-  localStorage.setItem('itungaju_drafts_' + (currentGerai?.id||''), JSON.stringify(drafts));
-}
-
 function saveDraft() {
   const items = Object.keys(cart);
   if(!items.length) { showToast('Keranjang kosong!', 'error'); return; }
