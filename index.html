@@ -987,6 +987,7 @@ let currentGerai = null; // full gerai object
 let allGerais = [];
 let allProduk = [];
 let cart = {};
+let _drafts = [];
 let payMethod = 'tunai';
 let lapDateFilter = 'today', lapPayFilter = 'all', lapDateFrom = '', lapDateTo = '';
 let searchQ = '', activeKat = 'all';
@@ -1385,7 +1386,7 @@ async function loadApp() {
       allProduk = produk;
     }
 
-    renderMenuGrid();
+    renderKasir();
     checkLowStock();
     updateDraftBar();
     if(currentUser.role === 'owner' || currentUser.role === 'multi') checkPendingRequests();
@@ -2550,7 +2551,7 @@ async function deleteTransaksi(trxId) {
         }
 
         checkLowStock();
-        renderMenuGrid();
+        renderKasir();
         showToast('Transaksi dihapus & stok dikembalikan ✓', 'success');
       } catch(e) {
         showToast('Gagal hapus transaksi: ' + e.message, 'error');
