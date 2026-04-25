@@ -1593,24 +1593,25 @@ function renderDraftList() {
     el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Belum ada draft tersimpan</div>';
     return;
   }
-  el.innerHTML = drafts.map(d => {
-    const total = d.items.reduce((s,i) => s + i.harga * i.qty, 0) - (d.disc||0);
-    const timeStr = new Date(d.savedAt).toLocaleString('id-ID', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-    const itemStr = d.items.map(i => i.qty + 'x ' + i.nama).join(', ');
-    return \`<div style="background:var(--bg2);border:1.5px solid var(--border2);border-radius:16px;padding:14px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-        <div>
-          <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--font-head)">\${d.label}</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">⏰ \${timeStr}</div>
-        </div>
-        <div style="font-size:15px;font-weight:800;color:#e91e8c;font-family:var(--font-head)">\${rp(total)}</div>
-      </div>
-      <div style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.5">\${itemStr}</div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-action btn-teal btn-sm" style="flex:1" onclick="loadDraft('\${d.id}')">▶ Lanjutkan</button>
-        <button class="btn-action btn-red btn-xs" onclick="deleteDraft('\${d.id}')">🗑️</button>
-      </div>
-    </div>\`;
+  el.innerHTML = _drafts.map(d => {
+    const items = d.items || [];
+    const total = items.reduce((s,i) => s + i.harga * i.qty, 0) - (d.disc||0);
+    const timeStr = new Date(d.created_at).toLocaleString('id-ID', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const itemStr = items.map(i => i.qty + 'x ' + i.nama).join(', ');
+    return '<div style="background:var(--bg2);border:1.5px solid var(--border2);border-radius:16px;padding:14px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">' +
+        '<div>' +
+          '<div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--font-head)">' + d.label + '</div>' +
+          '<div style="font-size:10px;color:var(--text3);margin-top:2px">⏰ ' + timeStr + '</div>' +
+        '</div>' +
+        '<div style="font-size:15px;font-weight:800;color:#e91e8c;font-family:var(--font-head)">' + rp(total) + '</div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.5">' + itemStr + '</div>' +
+      '<div style="display:flex;gap:8px">' +
+        '<button class="btn-action btn-teal btn-sm" style="flex:1" onclick="loadDraft(\'' + d.id + '\')">▶ Lanjutkan</button>' +
+        '<button class="btn-action btn-red btn-xs" onclick="deleteDraft(\'' + d.id + '\')">🗑️</button>' +
+      '</div>' +
+    '</div>';
   }).join('');
 }
 
