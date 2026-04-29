@@ -988,6 +988,7 @@ let allGerais = [];
 let allProduk = [];
 let cart = {};
 let _drafts = [];
+let _activeDraftId = null;
 let payMethod = 'tunai';
 let lapDateFilter = 'today', lapPayFilter = 'all', lapDateFrom = '', lapDateTo = '';
 let searchQ = '', activeKat = 'all';
@@ -1494,7 +1495,7 @@ function setCartQty(id, val) {
   updateFAB(); renderCartItems();
 }
 
-function clearCart() { cart = {}; updateFAB(); closeCart(); renderKasir(); }
+function clearCart() { cart = {}; _activeDraftId = null; updateFAB(); closeCart(); renderKasir(); }
 
 /* ══════════════════════════════════════════════════
    DRAFT PESANAN — Supabase
@@ -1533,7 +1534,15 @@ async function loadDraft(draftId) {
   var draft = _drafts.find(function(d){ return d.id === draftId; });
   if(!draft) { showToast('Draft tidak ditemukan', 'error'); return; }
   cart = Object.assign({}, draft.cart_data || {});
+  _activeDraftId = draftId;
   closeDraftPanel();
+  // Hapus draft dari DB saat dilanjutkan
+  try {
+    await sb.delete('drafts', {'id=eq.': draftId});
+    _drafts = _drafts.filter(function(d){ return d.id !== draftId; });
+  } catch(e) {
+    console.warn('Gagal hapus draft saat load:', e);
+  }
   await updateDraftBar();
   setTimeout(function() {
     var discEl = document.getElementById('cart-disc');
@@ -1775,6 +1784,7 @@ async function prosesTransaksi() {
     document.getElementById('modal-sukses').classList.add('open');
 
     clearCart();
+    _activeDraftId = null;
     document.getElementById('cart-disc').value = '';
     checkLowStock();
   } catch(e) {
