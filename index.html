@@ -385,6 +385,100 @@ tr:hover td{background:rgba(13,148,136,.025)}
 .quick-btn:hover{background:rgba(13,148,136,.16);border-color:#0d9488}
 
 /* ══════════════════════════════════════════════════
+   LANDING PAGE
+   ══════════════════════════════════════════════════ */
+#screen-landing{background:var(--bg);overflow-y:auto;display:none;flex-direction:column}
+#screen-landing.active{display:flex}
+.lp-nav{height:56px;background:rgba(242,240,236,.92);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:40;backdrop-filter:blur(16px);flex-shrink:0}
+.lp-brand{font-family:var(--font-head);font-size:20px;font-weight:800;letter-spacing:-.5px;color:var(--text)}
+.lp-brand .accent{color:#0d9488}
+.lp-nav-actions{display:flex;gap:8px;align-items:center}
+.btn-lp-login{padding:8px 20px;background:linear-gradient(135deg,#0d9488,#0f766e);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:0 3px 10px rgba(13,148,136,.25);font-family:var(--font-head)}
+.btn-lp-login:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(13,148,136,.36)}
+.btn-lp-admin{padding:7px 14px;background:transparent;border:1.5px solid var(--border2);color:var(--text3);border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-lp-admin:hover{border-color:#0d9488;color:#0d9488}
+.lp-hero{padding:52px 24px 44px;text-align:center;position:relative;overflow:hidden}
+.lp-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(13,148,136,.09),transparent 68%);pointer-events:none}
+.lp-hero-badge{display:inline-flex;align-items:center;gap:6px;background:var(--gold-dim);border:1px solid rgba(13,148,136,.2);border-radius:20px;padding:6px 16px;font-size:11px;font-weight:700;color:#0d9488;margin-bottom:18px;letter-spacing:.3px}
+.lp-hero h1{font-family:var(--font-head);font-size:34px;font-weight:800;letter-spacing:-1.5px;line-height:1.14;color:var(--text);margin-bottom:14px}
+.lp-hero h1 .hl{color:#0d9488}
+.lp-hero p{font-size:15px;color:var(--text3);line-height:1.7;max-width:360px;margin:0 auto 28px}
+.btn-hero-cta{display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#0d9488,#0f766e);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;box-shadow:0 6px 20px rgba(13,148,136,.32);font-family:var(--font-head);letter-spacing:.2px}
+.btn-hero-cta:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(13,148,136,.42)}
+.lp-hero-sub{font-size:12px;color:var(--text3);margin-top:12px}
+.lp-mockup{margin:0 auto;max-width:320px;background:var(--card2);border:1px solid var(--border2);border-radius:20px;padding:16px;box-shadow:var(--s3);margin-top:32px}
+.lp-mock-topbar{height:36px;background:var(--bg2);border-radius:10px;margin-bottom:10px;display:flex;align-items:center;padding:0 12px;gap:8px}
+.lp-mock-dot{width:8px;height:8px;border-radius:50%}
+.lp-mock-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lp-mock-card{height:64px;background:var(--bg2);border-radius:10px;border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.lp-mock-icon{font-size:20px}
+.lp-mock-lbl{font-size:9px;color:var(--text3);font-weight:600}
+.lp-features{padding:0 20px 40px}
+.lp-section-title{font-family:var(--font-head);font-size:11px;font-weight:700;color:#0d9488;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.lp-section-h2{font-family:var(--font-head);font-size:24px;font-weight:800;letter-spacing:-.5px;color:var(--text);margin-bottom:6px}
+.lp-section-sub{font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:24px}
+.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:36px}
+.feat-card{background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:var(--s1)}
+.feat-icon-wrap{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:10px}
+.feat-title{font-family:var(--font-head);font-size:13px;font-weight:700;color:var(--text);margin-bottom:5px}
+.feat-desc{font-size:11px;color:var(--text3);line-height:1.55}
+.store-types{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:36px}
+.store-type-card{background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:18px;display:flex;gap:14px;align-items:flex-start;box-shadow:var(--s1)}
+.st-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.st-name{font-family:var(--font-head);font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px}
+.st-desc{font-size:12px;color:var(--text3);line-height:1.55}
+.st-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.st-tag{font-size:10px;padding:2px 8px;border-radius:20px;background:var(--bg2);color:var(--text3);border:1px solid var(--border)}
+.lp-cta-box{background:linear-gradient(135deg,#0d9488,#0f766e);border-radius:20px;padding:32px 24px;text-align:center;margin-bottom:32px}
+.lp-cta-box h2{font-family:var(--font-head);font-size:22px;font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:-.3px}
+.lp-cta-box p{font-size:13px;color:rgba(255,255,255,.72);margin-bottom:20px;line-height:1.6}
+.btn-cta-white{padding:13px 32px;background:#fff;color:#0d9488;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;transition:all .2s;font-family:var(--font-head)}
+.btn-cta-white:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.15)}
+.lp-footer{padding:20px 24px;border-top:1px solid var(--border);text-align:center;font-size:11px;color:var(--text3);flex-shrink:0}
+
+/* ══════════════════════════════════════════════════
+   UNIFIED LOGIN (baru — tanpa pilih gerai dulu)
+   ══════════════════════════════════════════════════ */
+#screen-login-new{background:linear-gradient(160deg,#edeae4,#e3ded6);align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden}
+#screen-login-new::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 55% at 15% 5%,rgba(13,148,136,.13),transparent 65%),radial-gradient(ellipse 60% 50% at 88% 90%,rgba(217,119,6,.07),transparent 60%);pointer-events:none}
+.login-new-box{width:100%;max-width:390px;background:var(--card);border:1px solid var(--border2);border-radius:28px;padding:40px 32px;position:relative;z-index:1;backdrop-filter:blur(20px);box-shadow:var(--s4),inset 0 1px 0 rgba(255,255,255,.9);animation:fadeInUp .45s cubic-bezier(.2,0,.2,1)}
+.back-to-lp{display:inline-flex;align-items:center;gap:6px;background:var(--gold-dim);border:1px solid rgba(13,148,136,.2);border-radius:20px;padding:7px 16px;font-size:12px;font-weight:600;color:#0d9488;margin-bottom:22px;cursor:pointer;transition:all .2s}
+.back-to-lp:hover{background:rgba(13,148,136,.16)}
+
+/* ══════════════════════════════════════════════════
+   OWNER DASHBOARD (pilih gerai milik sendiri)
+   ══════════════════════════════════════════════════ */
+#screen-owner{background:var(--bg);display:none;flex-direction:column;min-height:100vh}
+#screen-owner.active{display:flex}
+.owner-topbar{height:52px;background:rgba(242,240,236,.92);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:50;backdrop-filter:blur(16px);flex-shrink:0}
+.owner-body{flex:1;overflow-y:auto;padding:16px;padding-bottom:24px}
+.owner-welcome{font-family:var(--font-head);font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:3px}
+.owner-sub{font-size:13px;color:var(--text3);margin-bottom:20px}
+.owner-section-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px}
+.gerai-item-owner{background:var(--card2);border:1.5px solid var(--border2);border-radius:16px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all .22s;display:flex;align-items:center;gap:14px;box-shadow:var(--s1)}
+.gerai-item-owner:hover{border-color:#0d9488;transform:translateY(-2px);box-shadow:var(--s2)}
+.gerai-item-owner:active{transform:scale(.98)}
+.gio-logo{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;background:var(--bg2);border:1px solid var(--border);overflow:hidden}
+.gio-logo img{width:100%;height:100%;object-fit:cover;border-radius:11px}
+.gio-info{flex:1;min-width:0}
+.gio-name{font-family:var(--font-head);font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gio-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.gio-arrow{font-size:18px;color:var(--text3);flex-shrink:0}
+.gio-stats{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+.gio-stat{font-size:11px;color:var(--text3);background:var(--bg2);border-radius:20px;padding:3px 10px}
+.gio-stat strong{color:var(--text2);font-weight:700}
+.btn-add-gerai{width:100%;padding:14px;background:transparent;border:2px dashed var(--border2);border-radius:16px;color:var(--text3);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;margin-bottom:20px;font-family:var(--font-head)}
+.btn-add-gerai:hover{border-color:#0d9488;color:#0d9488;background:var(--gold-dim)}
+.new-gerai-form{background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:16px;display:none;box-shadow:var(--s1)}
+.new-gerai-form.open{display:block;animation:fadeInUp .25s ease-out}
+.jenis-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.jenis-opt{background:var(--bg2);border:1.5px solid var(--border2);border-radius:12px;padding:14px 8px;text-align:center;cursor:pointer;transition:all .2s}
+.jenis-opt:hover{border-color:#0d9488}
+.jenis-opt.selected{border-color:#0d9488;background:var(--gold-dim)}
+.jenis-opt .jo-icon{font-size:24px;margin-bottom:5px}
+.jenis-opt .jo-name{font-size:11px;font-weight:700;color:var(--text)}
+
+/* ══════════════════════════════════════════════════
    KAWAII OVERRIDES — hanya berlaku di #page-kasir
    ══════════════════════════════════════════════════ */
 #page-kasir{
@@ -477,40 +571,185 @@ tr:hover td{background:rgba(13,148,136,.025)}
   <div class="loading-text">Memuat aplikasi...</div>
 </div>
 
-<!-- PILIH GERAI -->
-<div id="screen-store" class="screen">
-  <div class="store-box">
-    <div class="brand-logo">
-      <div class="mark"><span class="accent">i</span>tungaju</div>
-      <div class="sub">Kasir & Stok untuk Semua Usaha</div>
+<!-- ══ LANDING PAGE ══ -->
+<div id="screen-landing" class="screen">
+  <nav class="lp-nav">
+    <div class="lp-brand"><span class="accent">i</span>tungaju</div>
+    <div class="lp-nav-actions">
+      <button class="btn-lp-admin" onclick="goAdminLogin()">Admin</button>
+      <button class="btn-lp-login" onclick="showLoginNew()">Masuk →</button>
     </div>
-    <p class="store-title">Pilih Gerai Anda</p>
-    <div class="store-cards" id="store-cards-container">
-      <div style="text-align:center;padding:20px;color:var(--text3);grid-column:1/-1">Memuat data gerai...</div>
+  </nav>
+
+  <!-- Hero -->
+  <div class="lp-hero">
+    <div class="lp-hero-badge">✦ Kasir Digital untuk Semua Usaha</div>
+    <h1>Kelola Kasir &amp; Stok<br>dengan <span class="hl">itungaju</span></h1>
+    <p>Aplikasi kasir lengkap untuk gerai fotokopi, retail, dan makanan. Satu platform, semua fitur yang Anda butuhkan.</p>
+    <button class="btn-hero-cta" onclick="showLoginNew()">Masuk ke Aplikasi →</button>
+    <div class="lp-hero-sub">Sudah punya akun? Login langsung dengan username Anda.</div>
+    <!-- Mini mockup -->
+    <div class="lp-mockup">
+      <div class="lp-mock-topbar">
+        <div class="lp-mock-dot" style="background:#0d9488"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--text3)">Kasir · Gerai Fotokopi</div>
+      </div>
+      <div class="lp-mock-grid">
+        <div class="lp-mock-card"><div class="lp-mock-icon">📄</div><div class="lp-mock-lbl">Fotokopi A4</div></div>
+        <div class="lp-mock-card"><div class="lp-mock-icon">🖨️</div><div class="lp-mock-lbl">Print Warna</div></div>
+        <div class="lp-mock-card"><div class="lp-mock-icon">📷</div><div class="lp-mock-lbl">Cetak Foto</div></div>
+        <div class="lp-mock-card"><div class="lp-mock-icon">✏️</div><div class="lp-mock-lbl">ATK</div></div>
+      </div>
     </div>
-    <button class="btn-admin-link" onclick="goAdminLogin()">🔐 Login Admin</button>
+  </div>
+
+  <!-- Fitur -->
+  <div class="lp-features">
+    <div class="lp-section-title">Fitur Unggulan</div>
+    <div class="lp-section-h2">Semua yang Anda butuhkan</div>
+    <div class="lp-section-sub">Didesain untuk kecepatan dan kemudahan, baik di HP maupun komputer.</div>
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:var(--gold-dim)">🧾</div>
+        <div class="feat-title">Kasir Cepat</div>
+        <div class="feat-desc">Proses transaksi tunai, transfer, dan hutang dalam hitungan detik.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:var(--green-dim)">📦</div>
+        <div class="feat-title">Manajemen Stok</div>
+        <div class="feat-desc">Pantau stok real-time, notifikasi menipis, dan histori pergerakan.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:var(--orange-dim)">📊</div>
+        <div class="feat-title">Laporan Lengkap</div>
+        <div class="feat-desc">Grafik penjualan harian, arus kas, produk terlaris, dan export CSV.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:var(--purple-dim)">👥</div>
+        <div class="feat-title">Multi Kasir</div>
+        <div class="feat-desc">Owner daftarkan banyak kasir. Tiap kasir punya akses sesuai perannya.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:rgba(13,148,136,.12)">🖨️</div>
+        <div class="feat-title">Cetak Struk</div>
+        <div class="feat-desc">Struk otomatis dengan logo & info gerai, bisa cetak atau simpan PDF.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:rgba(217,119,6,.1)">✅</div>
+        <div class="feat-title">Verifikasi Stok</div>
+        <div class="feat-desc">Kasir ajukan perubahan stok, owner verifikasi — data selalu akurat.</div>
+      </div>
+    </div>
+
+    <!-- Jenis Usaha -->
+    <div class="lp-section-title">Jenis Usaha</div>
+    <div class="lp-section-h2">Cocok untuk berbagai usaha</div>
+    <div class="lp-section-sub">Setiap jenis gerai punya fitur dan kategori yang sudah disesuaikan.</div>
+    <div class="store-types">
+      <div class="store-type-card">
+        <div class="st-icon" style="background:var(--gold-dim)">🖨️</div>
+        <div>
+          <div class="st-name">Gerai Fotokopi</div>
+          <div class="st-desc">Kasir lengkap untuk fotokopi, print, cetak foto, ATK, dan layanan jasa.</div>
+          <div class="st-tags"><span class="st-tag">Fotokopi</span><span class="st-tag">Print</span><span class="st-tag">Cetak Foto</span><span class="st-tag">ATK</span><span class="st-tag">Jasa</span></div>
+        </div>
+      </div>
+      <div class="store-type-card">
+        <div class="st-icon" style="background:var(--purple-dim)">🏪</div>
+        <div>
+          <div class="st-name">Gerai Retail</div>
+          <div class="st-desc">Untuk toko kelontong, minimarket, atau warung dengan banyak jenis produk.</div>
+          <div class="st-tags"><span class="st-tag">Elektronik</span><span class="st-tag">Pakaian</span><span class="st-tag">Sembako</span><span class="st-tag">Perawatan</span></div>
+        </div>
+      </div>
+      <div class="store-type-card">
+        <div class="st-icon" style="background:var(--orange-dim)">🍽️</div>
+        <div>
+          <div class="st-name">Gerai Makanan</div>
+          <div class="st-desc">Kasir restoran, warung, atau kafe dengan manajemen menu dan bahan baku.</div>
+          <div class="st-tags"><span class="st-tag">Makanan</span><span class="st-tag">Minuman</span><span class="st-tag">Snack</span><span class="st-tag">Paket</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="lp-cta-box">
+      <h2>Siap mulai sekarang?</h2>
+      <p>Login dengan akun yang sudah diberikan oleh admin. Belum punya akun? Hubungi admin sistem Anda.</p>
+      <button class="btn-cta-white" onclick="showLoginNew()">Masuk ke itungaju →</button>
+    </div>
+  </div>
+
+  <div class="lp-footer">
+    &copy; 2025 itungaju · Kasir &amp; Stok untuk Semua Usaha
   </div>
 </div>
 
-<!-- LOGIN -->
-<div id="screen-login" class="screen">
-  <div class="login-box">
+<!-- ══ LOGIN TERPADU (baru) ══ -->
+<div id="screen-login-new" class="screen">
+  <div class="login-new-box">
     <div class="brand-logo">
       <div class="mark"><span class="accent">i</span>tungaju</div>
-      <div class="sub" id="login-store-label">—</div>
+      <div class="sub">Masuk ke akun Anda</div>
     </div>
-    <div class="store-badge" onclick="backToStore()">← Ganti Gerai</div>
-    <div class="field"><label>USERNAME</label><input id="login-user" type="text" placeholder="masukkan username" autocomplete="off"></div>
+    <div class="back-to-lp" onclick="showScreen('screen-landing')">← Kembali</div>
+    <div class="field"><label>USERNAME</label><input id="login-user" type="text" placeholder="masukkan username" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="field">
-  <label>PASSWORD</label>
-  <div style="position:relative">
-    <input id="login-pass" type="password" placeholder="masukkan password" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:44px">
-    <button type="button" onclick="togglePass('login-pass','eye-login')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:0;line-height:1" id="eye-login">👁️</button>
+      <label>PASSWORD</label>
+      <div style="position:relative">
+        <input id="login-pass" type="password" placeholder="masukkan password" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:44px">
+        <button type="button" onclick="togglePass('login-pass','eye-login')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:0;line-height:1" id="eye-login">👁️</button>
+      </div>
+    </div>
+    <button class="btn-primary" id="btn-login" onclick="doLogin()">MASUK</button>
+    <div class="login-info" id="login-info">Masuk dengan username &amp; password yang diberikan oleh owner atau admin.</div>
   </div>
 </div>
-    <button class="btn-primary" id="btn-login" onclick="doLogin()">MASUK</button>
-    <div class="login-info" id="login-info">Login dengan username dan password yang diberikan oleh owner/admin.</div>
+
+<!-- ══ OWNER DASHBOARD ══ -->
+<div id="screen-owner" class="screen">
+  <div class="owner-topbar">
+    <div class="topbar-brand"><span class="accent">i</span>tungaju</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="topbar-user" id="owner-topbar-user"></span>
+      <button class="btn-logout" onclick="doLogout()">Keluar</button>
+    </div>
   </div>
+  <div class="owner-body">
+    <div class="owner-welcome" id="owner-welcome-name">Halo, Owner!</div>
+    <div class="owner-sub">Pilih gerai untuk mulai, atau tambah gerai baru.</div>
+
+    <!-- Daftar gerai milik owner ini -->
+    <div class="owner-section-label">Gerai Anda</div>
+    <div id="owner-gerai-list">
+      <div style="text-align:center;padding:24px;color:var(--text3)">Memuat gerai...</div>
+    </div>
+
+    <!-- Tambah Gerai Baru -->
+    <button class="btn-add-gerai" onclick="toggleNewGeraiForm()">+ Tambah Gerai Baru</button>
+    <div class="new-gerai-form" id="new-gerai-form">
+      <div class="section-title" style="margin-bottom:12px">Buat Gerai Baru</div>
+      <div class="form-field"><label>Nama Gerai</label><input id="ng-nama" placeholder="cth: Fotokopi Maju Jaya"></div>
+      <div class="form-field"><label>Jenis Usaha</label>
+        <div class="jenis-grid">
+          <div class="jenis-opt selected" id="jopt-fotokopi" onclick="selectJenis('fotokopi')"><div class="jo-icon">🖨️</div><div class="jo-name">Fotokopi</div></div>
+          <div class="jenis-opt" id="jopt-retail" onclick="selectJenis('retail')"><div class="jo-icon">🏪</div><div class="jo-name">Retail</div></div>
+          <div class="jenis-opt" id="jopt-makanan" onclick="selectJenis('makanan')"><div class="jo-icon">🍽️</div><div class="jo-name">Makanan</div></div>
+        </div>
+      </div>
+      <div class="form-field"><label>Alamat (opsional)</label><input id="ng-alamat" placeholder="Alamat gerai"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-action btn-teal" onclick="createGeraiOwner()">Buat Gerai</button>
+        <button class="btn-action btn-gray" onclick="toggleNewGeraiForm()">Batal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN LAMA — tetap ada tapi tidak dipakai untuk pilih gerai -->
+<div id="screen-store" class="screen" style="display:none!important"></div>
+<div id="screen-login" class="screen" style="display:none!important">
+  <div style="display:none"><input id="login-store-label"></div>
 </div>
 
 <!-- ADMIN LOGIN -->
@@ -559,6 +798,7 @@ tr:hover td{background:rgba(13,148,136,.025)}
     </div>
     <div class="topbar-right">
       <span class="topbar-user" id="app-topbar-user"></span>
+      <button id="btn-back-owner" onclick="backToOwnerDashboard()" style="display:none;padding:5px 10px;background:var(--gold-dim);border:1px solid rgba(13,148,136,.2);border-radius:8px;color:#0d9488;font-size:11px;font-weight:700;cursor:pointer">← Gerai</button>
       <button class="btn-logout" onclick="doLogout()">Keluar</button>
     </div>
   </div>
@@ -1065,49 +1305,31 @@ function selectIcon(cid, hid, ic) {
 // ══════════════════════════════════════════════════════
 async function init() {
   try {
-    // Satu query untuk warm-up koneksi sekaligus ambil data gerai
-    allGerais = await sb.query('gerais', { select: 'id,nama,jenis,logo_url,aktif', filter: { 'aktif=eq.': 'true' }, order: 'created_at.asc' });
-    renderStoreCards();
+    // warm-up koneksi
+    await sb.query('gerais', { select: 'id', filter: { 'aktif=eq.': 'true' }, limit: 1 });
   } catch(e) {
-    console.error('Init error:', e);
-    document.getElementById('store-cards-container').innerHTML = '<div style="text-align:center;padding:20px;color:var(--red);grid-column:1/-1;font-size:13px">⚠️ Gagal terhubung ke server.<br>Periksa koneksi internet lalu refresh.</div>';
+    console.warn('Init warm-up error:', e);
   }
-  showScreen('screen-store');
+  showScreen('screen-landing');
 }
 
-function renderStoreCards() {
-  const c = document.getElementById('store-cards-container');
-  if(!allGerais.length) {
-    c.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3);grid-column:1/-1">Belum ada gerai aktif. Hubungi admin.</div>`;
-    return;
-  }
-  c.innerHTML = allGerais.map(g => `
-    <div class="store-card" onclick="selectStore('${g.id}')">
-      ${g.logo_url ? `<img src="${g.logo_url}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;margin-bottom:8px">` : `<div class="sc-icon">${STORE_EMOJI[g.jenis]||'🏪'}</div>`}
-      <div class="sc-name">${g.nama}</div>
-      <div class="sc-desc">${g.jenis}</div>
-    </div>
-  `).join('');
-}
-
-// ══════════════════════════════════════════════════════
-//  AUTH
-// ══════════════════════════════════════════════════════
-let selectedGeraiId = null;
-
-function selectStore(geraiId) {
-  selectedGeraiId = geraiId;
-  const g = allGerais.find(x => x.id === geraiId);
-  document.getElementById('login-store-label').textContent = (STORE_EMOJI[g?.jenis]||'🏪') + ' ' + (g?.nama || 'Gerai');
-  showScreen('screen-login');
+function showLoginNew() {
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
+  document.getElementById('login-info').textContent = 'Masuk dengan username & password yang diberikan oleh owner atau admin.';
+  showScreen('screen-login-new');
+  setTimeout(() => document.getElementById('login-user').focus(), 100);
 }
 
-function backToStore() {
-  selectedGeraiId = null;
-  showScreen('screen-store');
-}
+// stub agar tidak error jika ada referensi lama
+function renderStoreCards() {}
+function selectStore(id) {}
+function backToStore() { showScreen('screen-landing'); }
+
+// ══════════════════════════════════════════════════════
+//  AUTH — LOGIN TERPADU
+// ══════════════════════════════════════════════════════
+let selectedGeraiId = null;
 
 async function doLogin() {
   const u = document.getElementById('login-user').value.trim();
@@ -1118,25 +1340,41 @@ async function doLogin() {
   btn.disabled = true; btn.textContent = 'Memuat...';
 
   try {
-    // Parallelkan: cari user di gerai + admin sekaligus
-    const [usersGerai, usersAdmin] = await Promise.all([
-      sb.query('users', { select: '*', filter: { 'username=eq.': u, 'gerai_id=eq.': selectedGeraiId } }),
-      sb.query('users', { select: '*', filter: { 'username=eq.': u, 'role=eq.': 'admin' } })
-    ]);
-    const users = usersGerai.length ? usersGerai : usersAdmin;
-    if(!users.length) { showToast('Username tidak ditemukan!', 'error'); return; }
+    // Cari user berdasarkan username saja (tidak perlu pilih gerai dulu)
+    const users = await sb.query('users', {
+      select: '*',
+      filter: { 'username=eq.': u }
+    });
 
+    if(!users.length) { showToast('Username tidak ditemukan!', 'error'); return; }
     const user = users[0];
     if(user.password !== p) { showToast('Password salah!', 'error'); return; }
 
     currentUser = user;
-    currentGerai = allGerais.find(g => g.id === (user.gerai_id || selectedGeraiId)) || null;
-    if(!currentGerai && selectedGeraiId) {
-      const allG = await sb.query('gerais', { select: '*', filter: { 'id=eq.': selectedGeraiId } });
-      currentGerai = allG[0] || null;
+
+    // Routing berdasarkan role
+    if(user.role === 'admin') {
+      // → Admin panel
+      document.getElementById('admin-topbar-user').textContent = u;
+      await renderAdminDashboard();
+      showScreen('screen-admin');
+
+    } else if(user.role === 'owner') {
+      // → Owner dashboard (lihat gerai miliknya saja)
+      await loadOwnerDashboard();
+
+    } else {
+      // Kasir → langsung ke gerai yang ditugaskan
+      if(!user.gerai_id) { showToast('Akun kasir belum memiliki gerai!', 'error'); return; }
+      const gerais = await sb.query('gerais', {
+        select: '*',
+        filter: { 'id=eq.': user.gerai_id }
+      });
+      if(!gerais.length) { showToast('Gerai tidak ditemukan!', 'error'); return; }
+      currentGerai = gerais[0];
+      await loadApp();
     }
 
-    await loadApp();
   } catch(e) {
     console.error('Login error:', e);
     showToast('Gagal login: ' + e.message, 'error');
@@ -1147,6 +1385,124 @@ async function doLogin() {
 
 function goAdminLogin() {
   showScreen('screen-admin-login');
+}
+
+function doLogout() {
+  currentUser = null; currentGerai = null;
+  cart = {}; allProduk = []; selectedGeraiId = null;
+  showScreen('screen-landing');
+}
+
+// ══════════════════════════════════════════════════════
+//  OWNER DASHBOARD
+// ══════════════════════════════════════════════════════
+let _newGeraiJenis = 'fotokopi';
+
+async function loadOwnerDashboard() {
+  showScreen('screen-owner');
+  document.getElementById('owner-welcome-name').textContent = 'Halo, ' + (currentUser.nama || currentUser.username) + '!';
+  document.getElementById('owner-topbar-user').textContent = (currentUser.nama || currentUser.username) + ' · Owner';
+  await renderOwnerGeraiList();
+}
+
+async function renderOwnerGeraiList() {
+  const el = document.getElementById('owner-gerai-list');
+  el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3)">Memuat gerai...</div>';
+  try {
+    // Ambil gerai milik owner ini (filter owner_id)
+    const gerais = await sb.query('gerais', {
+      select: '*',
+      filter: { 'owner_id=eq.': currentUser.id, 'aktif=eq.': 'true' },
+      order: 'created_at.asc'
+    });
+
+    if(!gerais.length) {
+      el.innerHTML = `<div style="text-align:center;padding:28px;color:var(--text3);background:var(--card2);border:1px dashed var(--border2);border-radius:16px;margin-bottom:12px">
+        <div style="font-size:28px;margin-bottom:8px">🏪</div>
+        <div style="font-weight:700;color:var(--text2);margin-bottom:4px">Belum ada gerai</div>
+        <div style="font-size:12px">Tambah gerai baru di bawah untuk mulai berjualan.</div>
+      </div>`;
+      return;
+    }
+
+    // Ambil jumlah kasir per gerai
+    const kasirData = await sb.query('users', {
+      select: 'gerai_id',
+      filter: { 'role=eq.': 'kasir' }
+    });
+
+    el.innerHTML = gerais.map(g => {
+      const kasirCount = kasirData.filter(u => u.gerai_id === g.id).length;
+      const logoHtml = g.logo_url
+        ? `<img src="${g.logo_url}" alt="${g.nama}">`
+        : (STORE_EMOJI[g.jenis] || '🏪');
+      return `<div class="gerai-item-owner" onclick="ownerEnterGerai('${g.id}')">
+        <div class="gio-logo">${logoHtml}</div>
+        <div class="gio-info">
+          <div class="gio-name">${g.nama}</div>
+          <div class="gio-meta">${STORE_EMOJI[g.jenis]||'🏪'} ${g.jenis}${g.alamat ? ' · ' + g.alamat : ''}</div>
+          <div class="gio-stats">
+            <span class="gio-stat"><strong>${kasirCount}</strong> kasir</span>
+            ${g.phone ? `<span class="gio-stat">${g.phone}</span>` : ''}
+          </div>
+        </div>
+        <div class="gio-arrow">›</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);padding:12px;font-size:13px">⚠️ Gagal memuat gerai: ${e.message}</div>`;
+  }
+}
+
+async function ownerEnterGerai(geraiId) {
+  showLoading();
+  try {
+    const gerais = await sb.query('gerais', { select: '*', filter: { 'id=eq.': geraiId } });
+    if(!gerais.length) { showToast('Gerai tidak ditemukan!', 'error'); return; }
+    currentGerai = gerais[0];
+    await loadApp();
+  } catch(e) {
+    showToast('Gagal masuk gerai: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+function toggleNewGeraiForm() {
+  const f = document.getElementById('new-gerai-form');
+  f.classList.toggle('open');
+  if(f.classList.contains('open')) {
+    document.getElementById('ng-nama').value = '';
+    document.getElementById('ng-alamat').value = '';
+    _newGeraiJenis = 'fotokopi';
+    selectJenis('fotokopi');
+  }
+}
+
+function selectJenis(jenis) {
+  _newGeraiJenis = jenis;
+  ['fotokopi','retail','makanan'].forEach(j => {
+    document.getElementById('jopt-' + j)?.classList.toggle('selected', j === jenis);
+  });
+}
+
+async function createGeraiOwner() {
+  const nama = document.getElementById('ng-nama').value.trim();
+  const alamat = document.getElementById('ng-alamat').value.trim();
+  if(!nama) { showToast('Isi nama gerai!', 'error'); return; }
+  showLoading();
+  try {
+    await sb.insert('gerais', {
+      nama,
+      jenis: _newGeraiJenis,
+      alamat: alamat || null,
+      aktif: true,
+      owner_id: currentUser.id
+    });
+    showToast('Gerai berhasil dibuat!', 'success');
+    toggleNewGeraiForm();
+    await renderOwnerGeraiList();
+  } catch(e) {
+    showToast('Gagal buat gerai: ' + e.message, 'error');
+  } finally { hideLoading(); }
 }
 
 async function doAdminLogin() {
@@ -1171,12 +1527,6 @@ async function doAdminLogin() {
   } finally { hideLoading(); }
 }
 
-function doLogout() {
-  currentUser = null; currentGerai = null;
-  cart = {}; allProduk = [];
-  showScreen('screen-store');
-}
-
 // ══════════════════════════════════════════════════════
 //  ADMIN DASHBOARD
 // ══════════════════════════════════════════════════════
@@ -1193,19 +1543,21 @@ async function renderAdminDashboard() {
       <div class="admin-section">
         <h3>🏪 Manajemen Gerai</h3>
         <div id="admin-gerais-list">
-          ${gerais.map(g => `
+          ${gerais.map(g => {
+            const ownerUser = users.find(u => u.id === g.owner_id);
+            return `
             <div class="gerai-item">
               <div class="gerai-logo-sm">${g.logo_url ? `<img src="${g.logo_url}" style="width:36px;height:36px;border-radius:8px;object-fit:cover">` : (STORE_EMOJI[g.jenis]||'🏪')}</div>
               <div class="gerai-info-sm">
                 <div class="gerai-name-sm">${g.nama}</div>
-                <div class="gerai-meta-sm">${g.jenis} · ${g.aktif?'<span style="color:#0ea5a5">Aktif</span>':'<span style="color:#f87171">Nonaktif</span>'}</div>
+                <div class="gerai-meta-sm">${g.jenis} · ${g.aktif?'<span style="color:#0ea5a5">Aktif</span>':'<span style="color:#f87171">Nonaktif</span>'} · Owner: <span style="color:rgba(255,255,255,.7)">${ownerUser ? (ownerUser.nama||ownerUser.username) : '—'}</span></div>
               </div>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
                 <button class="btn-admin-danger btn-xs" onclick="toggleGerai('${g.id}',${!g.aktif})">${g.aktif?'Nonaktifkan':'Aktifkan'}</button>
                 <button class="btn-admin-danger btn-xs" onclick="deleteGerai('${g.id}')">Hapus</button>
               </div>
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>
 
         <div class="admin-card" style="margin-top:16px">
@@ -1217,6 +1569,13 @@ async function renderAdminDashboard() {
               <option value="fotokopi">Fotokopi</option>
               <option value="retail">Retail</option>
               <option value="makanan">Makanan</option>
+            </select>
+          </div>
+          <div class="admin-field">
+            <label>Assign ke Owner (opsional)</label>
+            <select id="new-gerai-owner">
+              <option value="">— Tanpa owner —</option>
+              ${users.filter(u=>u.role==='owner').map(u=>`<option value="${u.id}">${u.nama||u.username} (@${u.username})</option>`).join('')}
             </select>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1281,10 +1640,11 @@ function toggleAdminUserGerai() {
 async function createGerai() {
   const nama = document.getElementById('new-gerai-nama').value.trim();
   const jenis = document.getElementById('new-gerai-jenis').value;
+  const ownerId = document.getElementById('new-gerai-owner')?.value || null;
   if(!nama) { showToast('Isi nama gerai!', 'error'); return; }
   try {
     showLoading();
-    await sb.insert('gerais', { nama, jenis, aktif: true });
+    await sb.insert('gerais', { nama, jenis, aktif: true, owner_id: ownerId || null });
     showToast('Gerai berhasil dibuat!', 'success');
     await renderAdminDashboard();
     allGerais = await sb.query('gerais', { select: '*', filter: { 'aktif=eq.': 'true' } });
@@ -1369,6 +1729,11 @@ async function loadApp() {
     // Setup UI dulu — tampil cepat tanpa tunggu data
     document.getElementById('app-store-badge').textContent = (STORE_EMOJI[currentGerai?.jenis]||'🏪') + ' ' + (currentGerai?.nama || 'Gerai');
     document.getElementById('app-topbar-user').textContent = (currentUser.nama||currentUser.username) + ' (' + currentUser.role + ')';
+
+    // Tampilkan tombol "← Gerai" hanya untuk owner (supaya bisa ganti gerai)
+    const btnBack = document.getElementById('btn-back-owner');
+    if(btnBack) btnBack.style.display = currentUser.role === 'owner' ? '' : 'none';
+
     renderBottomNav();
     goPage('kasir');
     showScreen('screen-app');
@@ -1397,6 +1762,13 @@ async function loadApp() {
     console.error(e);
     hideLoading();
   }
+}
+
+function backToOwnerDashboard() {
+  // Kembali ke owner dashboard tanpa logout
+  currentGerai = null;
+  cart = {}; allProduk = [];
+  loadOwnerDashboard();
 }
 
 function renderBottomNav() {
