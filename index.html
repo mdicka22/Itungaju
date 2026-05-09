@@ -1176,17 +1176,7 @@ const sb = {
   },
   async update(table, data, filter) {
     let url = `${SUPABASE_URL}/rest/v1/${table}?`;
-    // Validasi filter tidak boleh kosong — mencegah update semua baris
-    if (!filter || Object.keys(filter).length === 0) {
-      throw new Error('[sb.update] Filter tidak boleh kosong! Operasi dibatalkan untuk keamanan.');
-    }
-    for (const [k, v] of Object.entries(filter)) {
-      // Validasi value filter tidak boleh undefined/null
-      if (v === undefined || v === null || v === '') {
-        throw new Error(`[sb.update] Nilai filter "${k}" tidak valid (${v}). Operasi dibatalkan.`);
-      }
-      url += `${k}${v}&`;
-    }
+    for (const [k, v] of Object.entries(filter)) url += `${k}${v}&`;
     const res = await fetch(url, {
       method: 'PATCH',
       headers: {
@@ -1198,12 +1188,7 @@ const sb = {
       body: JSON.stringify(data)
     });
     if (!res.ok) throw new Error(await res.text());
-    const result = await res.json();
-    // Deteksi silent fail: update sukses tapi 0 baris terpengaruh
-    if (Array.isArray(result) && result.length === 0) {
-      console.warn(`[sb.update] Peringatan: UPDATE ${table} dengan filter`, filter, 'tidak mengubah baris manapun. Data mungkin tidak ditemukan.');
-    }
-    return result;
+    return res.json();
   },
   async delete(table, filter) {
     let url = `${SUPABASE_URL}/rest/v1/${table}?`;
@@ -1448,9 +1433,7 @@ async function renderOwnerGeraiList() {
 
     el.innerHTML = gerais.map(g => {
       const kasirCount = kasirData.filter(u => u.gerai_id === g.id).length;
-      const logoHtml = g.logo_url
-        ? `<img src="${g.logo_url}" alt="${g.nama}">`
-        : (STORE_EMOJI[g.jenis] || '🏪');
+      const logoHtml = g.logo_url ? `<img src="${g.logo_url}" alt="${g.nama}">` : (STORE_EMOJI[g.jenis] || '🏪');
       return `<div class="gerai-item-owner" onclick="ownerEnterGerai('${g.id}')">
         <div class="gio-logo">${logoHtml}</div>
         <div class="gio-info">
@@ -2111,10 +2094,10 @@ function hitungKembalian() {
 async function prosesTransaksi() {
   const items = Object.keys(cart).map(id => {
     const p = allProduk.find(x => x.id === id);
-    return p ? { id: p.id, nama: p.nama, icon: p.icon, harga: p.harga_jual, qty: cart[id], sub: p.harga_jual * cart[id], is_jasa: p.is_jasa } : null;
+    return p ? { id: p.id, nama: p.nama, icon: p.icon, harga: p.harga_jual, qty: cart[id], sub: p.harga_jual * cart[id] } : null;
   }).filter(Boolean);
 
-  if (!items.length) { showToast('Keranjang kosong!', 'error'); return; }
+  if(!items.length) { showToast('Keranjang kosong!', 'error'); return; }
 
   const subtotal = cartTotal();
   const disc = parseFloat(document.getElementById('cart-disc').value) || 0;
@@ -2123,127 +2106,67 @@ async function prosesTransaksi() {
   const kembalian = payMethod === 'tunai' ? bayar - total : 0;
   const debtId = payMethod === 'hutang' ? document.getElementById('cart-debt-id').value.trim() : null;
 
-  if (payMethod === 'tunai' && bayar < total) { showToast('Uang bayar kurang!', 'error'); return; }
-  if (payMethod === 'hutang' && !debtId) { showToast('Isi nama pelanggan hutang!', 'error'); return; }
+  if(payMethod === 'tunai' && bayar < total) { showToast('Uang bayar kurang!', 'error'); return; }
+  if(payMethod === 'hutang' && !debtId) { showToast('Isi nama pelanggan hutang!', 'error'); return; }
 
   showLoading();
   try {
-    // BUG FIX #3: Fetch stok TERBARU dari DB untuk semua produk non-jasa
-    // Ini mencegah race condition ketika 2 kasir transaksi bersamaan
-    const nonJasaIds = items.filter(i => !i.is_jasa).map(i => i.id);
-    let stokTerkini = {}; // { produk_id: stok_db }
-
-    if (nonJasaIds.length > 0) {
-      // Fetch semua stok sekaligus dengan filter IN
-      // Karena sb.query custom tidak support IN, fetch satu per satu lalu paralel
-      const stokFetches = await Promise.all(
-        nonJasaIds.map(id => sb.query('produk', {
-          select: 'id,stok,nama',
-          filter: { 'id=eq.': id }
-        }))
-      );
-      stokFetches.forEach(rows => {
-        if (rows[0]) stokTerkini[rows[0].id] = { stok: rows[0].stok ?? 0, nama: rows[0].nama };
-      });
-
-      // Validasi stok cukup berdasarkan data DB terbaru
-      for (const item of items) {
-        if (item.is_jasa) continue;
-        const dbData = stokTerkini[item.id];
-        if (!dbData) throw new Error(`Produk "${item.nama}" tidak ditemukan di database.`);
-        if (dbData.stok < item.qty) {
-          throw new Error(
-            `Stok "${item.nama}" tidak cukup!\nStok terbaru di server: ${dbData.stok}, dibutuhkan: ${item.qty}.\nMungkin ada kasir lain yang baru saja menjual produk ini.`
-          );
-        }
-      }
-    }
-
     // Insert transaksi
     const trxData = {
       gerai_id: currentGerai.id,
       kasir_id: currentUser.id,
       items: items,
-      subtotal, diskon: disc, total,
-      bayar: bayar || null,
-      kembalian: kembalian || null,
-      metode: payMethod,
-      debt_id: debtId || null
+      subtotal, diskon: disc, total, bayar: bayar||null, kembalian: kembalian||null,
+      metode: payMethod, debt_id: debtId||null
     };
     await sb.insert('transaksi', trxData);
 
-    // Update stok & sold — gunakan stok dari DB (bukan dari allProduk lokal)
-    for (const item of items) {
+    // Update stok produk (hanya non-jasa)
+    for(const item of items) {
       const p = allProduk.find(x => x.id === item.id);
-      if (!item.is_jasa) {
-        const stokDB = stokTerkini[item.id]?.stok ?? (p?.stok ?? 0);
-        const newStok = Math.max(0, stokDB - item.qty);
-        const newSold = (p?.sold ?? 0) + item.qty;
-
-        const updateResult = await sb.update(
-          'produk',
-          { stok: newStok, sold: newSold },
-          { 'id=eq.': item.id }
-        );
-
-        // BUG FIX #4: Validasi update berhasil
-        if (!updateResult || (Array.isArray(updateResult) && updateResult.length === 0)) {
-          console.error(`[prosesTransaksi] Update stok gagal untuk produk ${item.nama} (${item.id})`);
-          // Tidak throw — transaksi sudah tersimpan, stok update fail tidak boleh batalkan transaksi
-          // Tapi log error agar bisa ditelusuri
-        }
-
-        // Sync ke cache lokal
-        if (p) { p.stok = newStok; p.sold = newSold; }
-
-      } else {
-        // Jasa: hanya update sold
-        const newSold = (p?.sold ?? 0) + item.qty;
-        await sb.update('produk', { sold: newSold }, { 'id=eq.': item.id });
-        if (p) p.sold = newSold;
+      if(p && !p.is_jasa) {
+        const newStok = Math.max(0, (p.stok||0) - item.qty);
+        const newSold = (p.sold||0) + item.qty;
+        await sb.update('produk', { stok: newStok, sold: newSold }, { 'id=eq.': p.id });
+        p.stok = newStok; p.sold = newSold;
+      } else if(p && p.is_jasa) {
+        const newSold = (p.sold||0) + item.qty;
+        await sb.update('produk', { sold: newSold }, { 'id=eq.': p.id });
+        p.sold = newSold;
       }
     }
 
     // Build receipt
     const kasirNama = currentUser.nama || currentUser.username;
-    lastReceiptHTML = items.map(i =>
-      `<div class="receipt-line"><span>${i.icon} ${i.nama} ×${i.qty}</span><span>${rp(i.sub)}</span></div>`
-    ).join('');
+    lastReceiptHTML = items.map(i => `<div class="receipt-line"><span>${i.icon} ${i.nama} ×${i.qty}</span><span>${rp(i.sub)}</span></div>`).join('');
     lastReceiptHTML += `<div class="receipt-divider"></div>
       <div class="receipt-line"><span>Subtotal</span><span>${rp(subtotal)}</span></div>
-      ${disc ? `<div class="receipt-line"><span>Diskon</span><span>-${rp(disc)}</span></div>` : ''}
+      ${disc?`<div class="receipt-line"><span>Diskon</span><span>-${rp(disc)}</span></div>`:''}
       <div class="receipt-line receipt-total"><span>TOTAL</span><span>${rp(total)}</span></div>
-      ${payMethod === 'tunai' ? `<div class="receipt-line"><span>Bayar</span><span>${rp(bayar)}</span></div><div class="receipt-line"><span>Kembalian</span><span>${rp(kembalian)}</span></div>` : ''}
+      ${payMethod==='tunai'?`<div class="receipt-line"><span>Bayar</span><span>${rp(bayar)}</span></div><div class="receipt-line"><span>Kembalian</span><span>${rp(kembalian)}</span></div>`:''}
       <div class="receipt-line"><span>Metode</span><span>${payMethod.toUpperCase()}</span></div>
-      ${debtId ? `<div class="receipt-line"><span>Pelanggan</span><span>${debtId}</span></div>` : ''}
+      ${debtId?`<div class="receipt-line"><span>Pelanggan</span><span>${debtId}</span></div>`:''}
       <div class="receipt-divider"></div>
       <div class="receipt-line"><span>Kasir</span><span>${kasirNama}</span></div>`;
 
     document.getElementById('modal-receipt').innerHTML = lastReceiptHTML;
-    document.getElementById('modal-kembalian').textContent =
-      payMethod === 'tunai' ? ('Kembalian: ' + rp(kembalian)) : '';
+    document.getElementById('modal-kembalian').textContent = payMethod === 'tunai' ? ('Kembalian: ' + rp(kembalian)) : '';
     document.getElementById('modal-sukses').classList.add('open');
 
     clearCart();
     _activeDraftId = null;
     document.getElementById('cart-disc').value = '';
     checkLowStock();
-    renderKasir(); // Refresh grid agar stok terbaru langsung tampil
-
   } catch(e) {
-    showToast('❌ ' + e.message, 'error');
-    console.error('[prosesTransaksi] Error:', e);
-  } finally {
-    hideLoading();
-  }
+    showToast('Gagal proses transaksi: ' + e.message, 'error');
+    console.error(e);
+  } finally { hideLoading(); }
 }
 
 function closeModal() { document.getElementById('modal-sukses').classList.remove('open'); }
 function printReceipt() {
   const g = currentGerai;
-  const logoHTML = g?.logo_url
-    ? `<img src="${g.logo_url}" style="width:72px;height:72px;object-fit:cover;border-radius:12px;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" crossorigin="anonymous">`
-    : `<div style="font-size:48px;text-align:center;margin-bottom:8px">${STORE_EMOJI[g?.jenis]||'🏪'}</div>`;
+  const logoHTML = g?.logo_url ? `<img src="${g.logo_url}" style="width:72px;height:72px;object-fit:cover;border-radius:12px;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" crossorigin="anonymous">` : `<div style="font-size:48px;text-align:center;margin-bottom:8px">${STORE_EMOJI[g?.jenis]||'🏪'}</div>`;
 
   const w = window.open('', '_blank', 'width=420,height=680');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Struk — ${g?.nama||'itungaju'}</title>
@@ -2300,29 +2223,7 @@ function checkLowStock() {
 // ══════════════════════════════════════════════════════
 //  STOK REQUESTS
 // ══════════════════════════════════════════════════════
-
-// Helper: pastikan allProduk selalu segar sebelum operasi stok
-async function ensureProdukLoaded() {
-  if (!currentGerai?.id) return;
-  // Jika allProduk kosong atau bukan milik gerai ini, fetch ulang
-  const sudahAda = allProduk.length > 0 && allProduk[0]?.gerai_id === currentGerai.id;
-  if (!sudahAda) {
-    try {
-      allProduk = await sb.query('produk', {
-        select: '*',
-        filter: { 'gerai_id=eq.': currentGerai.id, 'aktif=eq.': 'true' },
-        order: 'sold.desc'
-      });
-    } catch(e) {
-      console.warn('[ensureProdukLoaded] Gagal fetch produk:', e);
-    }
-  }
-}
-
 async function renderStokRequestPage() {
-  // Pastikan produk ter-load sebelum render — terutama jika langsung ke halaman ini
-  await ensureProdukLoaded();
-
   // Populate produk select
   const sel = document.getElementById('req-produk');
   sel.innerHTML = allProduk.filter(p => !p.is_jasa).map(p => `<option value="${p.id}">${p.icon||'📦'} ${p.nama} (stok: ${p.stok||0})</option>`).join('');
@@ -2377,9 +2278,7 @@ async function importStokExcel(e) {
       matched.push({ nama: nameProd, produk_id: prod?.id, qty, biaya: parseInt(row[2])||0, found: !!prod });
     }
     excelImportData = matched.filter(m => m.found);
-    document.getElementById('excel-import-preview').innerHTML = matched.length
-      ? `✅ ${matched.filter(m=>m.found).length}/${matched.length} produk cocok:<br>` + matched.map(m=>`${m.found?'✅':'❌'} ${m.nama} (${m.qty})`).join(', ')
-      : '❌ Tidak ada data valid';
+    document.getElementById('excel-import-preview').innerHTML = matched.length ? (`✅ ${matched.filter(m=>m.found).length}/${matched.length} produk cocok:<br>` + matched.map(m=>`${m.found?'✅':'❌'} ${m.nama} (${m.qty})`).join(', ')) : '❌ Tidak ada data valid';
   } catch(err) {
     showToast('Gagal baca Excel: ' + err.message, 'error');
   }
@@ -2473,8 +2372,7 @@ async function checkPendingRequests() {
 async function renderVerifStokPage() {
   try {
     showLoading();
-    // Pastikan allProduk ter-load — owner bisa saja langsung buka halaman verifikasi
-    await ensureProdukLoaded();
+    const reqs = await sb.query('stok_requests', {
       select: '*',
       filter: { 'gerai_id=eq.': currentGerai.id },
       order: 'created_at.desc',
@@ -2516,13 +2414,9 @@ async function renderVerifStokPage() {
       </div>`;
     }
 
-    document.getElementById('pending-requests-list').innerHTML = pending.length
-      ? pending.map(r => renderReqCard(r, true)).join('')
-      : '<div style="text-align:center;padding:20px;color:var(--text3)">Tidak ada permintaan pending ✅</div>';
+    document.getElementById('pending-requests-list').innerHTML = pending.length ? pending.map(r => renderReqCard(r, true)).join('') : '<div style="text-align:center;padding:20px;color:var(--text3)">Tidak ada permintaan pending ✅</div>';
 
-    document.getElementById('all-requests-list').innerHTML = history.length
-      ? history.map(r => renderReqCard(r, false)).join('')
-      : '<div style="text-align:center;padding:20px;color:var(--text3)">Belum ada riwayat</div>';
+    document.getElementById('all-requests-list').innerHTML = history.length ? history.map(r => renderReqCard(r, false)).join('') : '<div style="text-align:center;padding:20px;color:var(--text3)">Belum ada riwayat</div>';
 
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
   finally { hideLoading(); }
@@ -2531,85 +2425,25 @@ async function renderVerifStokPage() {
 async function approveRequest(reqId) {
   showLoading();
   try {
-    // Ambil data request dari DB (bukan cache)
     const reqs = await sb.query('stok_requests', { select: '*', filter: { 'id=eq.': reqId } });
-    const req = reqs[0];
-    if (!req) throw new Error('Request tidak ditemukan di database.');
-    if (req.status !== 'pending') {
-      showToast('Request ini sudah diproses sebelumnya.', 'error');
-      await renderVerifStokPage();
-      return;
+    const req = reqs[0]; if(!req) throw new Error('Request not found');
+    const catatan = document.getElementById('req-note-'+reqId)?.value || '';
+
+    // Update stok produk
+    const p = allProduk.find(x => x.id === req.produk_id);
+    if(p) {
+      const newStok = req.tipe === 'masuk' ? (p.stok||0) + req.qty : Math.max(0, (p.stok||0) - req.qty);
+      await sb.update('produk', { stok: newStok }, { 'id=eq.': req.produk_id });
+      p.stok = newStok;
     }
 
-    const catatan = document.getElementById('req-note-' + reqId)?.value || '';
-
-    // BUG FIX #1 & #2: Selalu fetch stok TERBARU dari DB — jangan andalkan allProduk
-    // allProduk bisa kosong (owner langsung ke verifikasi) atau stale (multi kasir)
-    const produkDB = await sb.query('produk', {
-      select: 'id,nama,stok,is_jasa',
-      filter: { 'id=eq.': req.produk_id }
-    });
-
-    if (!produkDB.length) {
-      throw new Error(`Produk dengan ID ${req.produk_id} tidak ditemukan di database.`);
-    }
-
-    const produkData = produkDB[0];
-
-    if (produkData.is_jasa) {
-      // Produk jasa tidak punya stok — skip update stok
-      await sb.update('stok_requests',
-        { status: 'approved', reviewed_by: currentUser.id, catatan },
-        { 'id=eq.': reqId }
-      );
-      showToast('Permintaan disetujui! (Produk jasa — stok tidak diubah)', 'success');
-    } else {
-      // Hitung stok baru dari nilai DB yang fresh
-      const stokSekarang = produkData.stok ?? 0;
-      const newStok = req.tipe === 'masuk'
-        ? stokSekarang + req.qty
-        : Math.max(0, stokSekarang - req.qty);
-
-      // Update stok di DB
-      const updateResult = await sb.update(
-        'produk',
-        { stok: newStok },
-        { 'id=eq.': req.produk_id }
-      );
-
-      // BUG FIX #4: Validasi update benar-benar mengubah baris
-      if (!updateResult || (Array.isArray(updateResult) && updateResult.length === 0)) {
-        throw new Error(`Gagal update stok produk "${produkData.nama}". Tidak ada baris yang berubah di database.`);
-      }
-
-      // Update status request
-      await sb.update('stok_requests',
-        { status: 'approved', reviewed_by: currentUser.id, catatan },
-        { 'id=eq.': reqId }
-      );
-
-      // Sync ke allProduk lokal jika produk ada di cache
-      const lokalProduk = allProduk.find(x => x.id === req.produk_id);
-      if (lokalProduk) lokalProduk.stok = newStok;
-
-      showToast(
-        `✅ Disetujui! Stok "${produkData.nama}": ${stokSekarang} → ${newStok}`,
-        'success'
-      );
-    }
-
+    await sb.update('stok_requests', { status: 'approved', reviewed_by: currentUser.id, catatan }, { 'id=eq.': reqId });
+    showToast('Permintaan disetujui! Stok otomatis diperbarui.', 'success');
     checkLowStock();
     await renderVerifStokPage();
     await checkPendingRequests();
-    // Refresh kasir grid agar stok terbaru langsung kelihatan
-    renderKasir();
-
-  } catch(e) {
-    showToast('❌ Error: ' + e.message, 'error');
-    console.error('[approveRequest] Error:', e);
-  } finally {
-    hideLoading();
-  }
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  finally { hideLoading(); }
 }
 
 async function rejectRequest(reqId) {
@@ -2991,14 +2825,7 @@ async function renderLaporan() {
     const hutangTrx = trxAll.filter(t => t.metode === 'hutang' && t.debt_id);
     const hutangMap = {};
     hutangTrx.forEach(t => { if(!hutangMap[t.debt_id]) hutangMap[t.debt_id]=0; hutangMap[t.debt_id]+=t.total||0; });
-    document.getElementById('lap-hutang-list').innerHTML = Object.entries(hutangMap).length
-      ? Object.entries(hutangMap).sort((a,b)=>b[1]-a[1]).map(([name,total]) => `
-          <div class="hutang-row">
-            <span>👤 ${name}</span>
-            <span style="font-weight:700;color:var(--red)">${rp(total)}</span>
-          </div>`)
-        .join('')
-      : '<div style="text-align:center;padding:12px;color:var(--text3)">Tidak ada hutang</div>';
+    document.getElementById('lap-hutang-list').innerHTML = Object.entries(hutangMap).length ? Object.entries(hutangMap).sort((a,b)=>b[1]-a[1]).map(([name,total]) => `<div class="hutang-row"><span>👤 ${name}</span><span style="font-weight:700;color:var(--red)">${rp(total)}</span></div>`).join('') : '<div style="text-align:center;padding:12px;color:var(--text3)">Tidak ada hutang</div>';
 
     // Trx list
     const isOwner = currentUser?.role === 'owner' || currentUser?.role === 'multi';
