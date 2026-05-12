@@ -211,6 +211,15 @@ tr:hover td{background:rgba(13,148,136,.025)}
 .cf-in{background:var(--green-dim);border:1px solid rgba(15,118,110,.14)}
 .cf-out{background:var(--red-dim);border:1px solid rgba(220,38,38,.12)}
 .stok-balance-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.expense-row{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--s1)}
+.expense-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:4px}
+.expense-title{font-size:13px;font-weight:800;color:var(--text);font-family:var(--font-head)}
+.expense-amount{font-size:14px;font-weight:800;color:var(--red);font-family:var(--font-head);white-space:nowrap}
+.expense-meta{font-size:11px;color:var(--text3);line-height:1.5}
+.hpp-row{display:grid;grid-template-columns:1.3fr .8fr .8fr .8fr .8fr;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px}
+.hpp-row.head{font-size:10px;color:var(--text3);font-weight:800;text-transform:uppercase;letter-spacing:.6px;background:var(--bg2);padding:9px 8px;border-radius:10px;border-bottom:none;margin-bottom:4px}
+.hpp-row > span:last-child{text-align:right;font-weight:800}
+.expense-help{font-size:11px;color:var(--text3);line-height:1.5;margin-top:6px}
 
 /* ── PROFIL ── */
 .profile-logo{width:80px;height:80px;border-radius:var(--r);object-fit:cover;border:1.5px solid var(--border2);box-shadow:var(--s1)}
@@ -978,6 +987,44 @@ tr:hover td{background:rgba(13,148,136,.025)}
     </div>
   </div>
 
+  <!-- PAGE: PENGELUARAN REAL (owner only) -->
+  <div id="page-pengeluaran" class="page">
+    <div class="page-header"><h2>Pengeluaran Real</h2><p>Catat belanja bahan, alat, gaji, dan biaya lain untuk HPP</p></div>
+    <div class="section-card">
+      <div class="section-title">+ Input Pengeluaran</div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>Jenis Pengeluaran</label>
+          <select id="exp-type" onchange="toggleExpenseProduct()">
+            <option value="bahan">Bahan</option>
+            <option value="alat">Alat</option>
+            <option value="gaji">Gaji Karyawan</option>
+            <option value="operasional">Operasional</option>
+            <option value="lainnya">Lainnya</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Tanggal</label><input type="datetime-local" id="exp-date"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Jumlah (Rp)</label><input type="number" id="exp-amount" placeholder="0"></div>
+        <div class="form-field" id="exp-product-wrap">
+          <label>Bahan Untuk Menu</label>
+          <select id="exp-product"></select>
+        </div>
+      </div>
+      <div class="form-field"><label>Keterangan</label><input id="exp-note" placeholder="cth: belanja ayam, tepung, plastik, gaji shift pagi"></div>
+      <button class="btn-action btn-orange" onclick="saveRealExpense()">Simpan Pengeluaran</button>
+      <div class="expense-help">Khusus jenis Bahan, pilih menu tujuan supaya Laporan bisa menghitung HPP real dan margin per produk pada periode yang dipilih.</div>
+    </div>
+    <div class="section-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap">
+        <div class="section-title" style="margin:0">Riwayat Pengeluaran Terbaru</div>
+        <button class="btn-export" onclick="exportExpenseCSV()">Export CSV</button>
+      </div>
+      <div id="expense-list"></div>
+    </div>
+  </div>
+
   <!-- PAGE: LAPORAN (owner only) -->
   <div id="page-laporan" class="page">
     <div class="page-header"><h2>Laporan</h2><p>Analitik & arus kas gerai</p></div>
@@ -1013,6 +1060,10 @@ tr:hover td{background:rgba(13,148,136,.025)}
       <div id="lap-terlaris-list"></div>
     </div>
     <div class="section-card">
+      <div class="section-title">HPP & Margin Per Produk</div>
+      <div id="lap-hpp-list"></div>
+    </div>
+    <div class="section-card">
       <div class="section-title">Arus Kas</div>
       <div class="form-row" style="margin-bottom:10px">
         <div class="form-field"><label>+ Catat Pengeluaran</label>
@@ -1028,6 +1079,10 @@ tr:hover td{background:rgba(13,148,136,.025)}
       <div class="form-field"><label>Keterangan</label><input id="lap-expense-note" placeholder="Detail pengeluaran"></div>
       <button class="btn-action btn-orange btn-sm" onclick="addExpense()" style="margin-bottom:14px">Simpan Pengeluaran</button>
       <div id="lap-cashflow-list"></div>
+    </div>
+    <div class="section-card">
+      <div class="section-title">Detail Pengeluaran Sesuai Periode</div>
+      <div id="lap-expense-detail-list"></div>
     </div>
     <div class="section-card">
       <div class="section-title">Stok Balance</div>
@@ -1778,6 +1833,7 @@ function renderBottomNav() {
   if(isOwner) {
     nav += `<button class="nav-item" onclick="goPage('verif-stok')" id="nav-verif-stok"><span class="nav-icon">✅</span>Verifikasi</button>`;
     nav += `<button class="nav-item" onclick="goPage('produk')" id="nav-produk"><span class="nav-icon">🏷️</span>Produk</button>`;
+    nav += `<button class="nav-item" onclick="goPage('pengeluaran')" id="nav-pengeluaran"><span class="nav-icon">Rp</span>Biaya</button>`;
     nav += `<button class="nav-item" onclick="goPage('profil')" id="nav-profil"><span class="nav-icon">⚙️</span>Profil</button>`;
     nav += `<button class="nav-item" onclick="goPage('laporan')" id="nav-laporan"><span class="nav-icon">📊</span>Laporan</button>`;
   }
@@ -1796,6 +1852,7 @@ function goPage(p) {
   if(p === 'stok-request') renderStokRequestPage();
   if(p === 'verif-stok') renderVerifStokPage();
   if(p === 'produk') { renderProdTable(); buildIconPicker('prod-icon-picker','prod-icon',ICONS); renderProdKatSelect(); }
+  if(p === 'pengeluaran') renderExpensePage();
   if(p === 'profil') renderProfilPage();
   if(p === 'laporan') renderLaporan();
 }
@@ -2577,6 +2634,156 @@ function exportProdukCSV() {
   downloadCSV(rows, 'produk.csv');
 }
 
+// Expense metadata is stored inside catatan so the feature works with the
+// existing pengeluaran table without requiring an immediate database migration.
+function expenseMeta(exp) {
+  const raw = exp?.catatan || '';
+  const m = raw.match(/^\[IJEXP:([A-Za-z0-9+/=]+)\]\s*(.*)$/);
+  let meta = {};
+  let note = raw;
+  if(m) {
+    try {
+      meta = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+      note = m[2] || '';
+    } catch(e) {
+      meta = {};
+      note = raw;
+    }
+  }
+  return {
+    tipe: exp.tipe || meta.tipe || 'lainnya',
+    produk_id: exp.produk_id || meta.produk_id || '',
+    catatan: note,
+    waktu: exp.waktu || exp.created_at,
+    amount: Number(exp.amount || 0)
+  };
+}
+
+function packExpenseNote(meta, note) {
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(meta))));
+  return `[IJEXP:${encoded}] ${note || ''}`.trim();
+}
+
+function expenseDateValue(d) {
+  const dt = d ? new Date(d) : new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+}
+
+function getLapRange() {
+  const now = new Date();
+  let start = null, end = null;
+  if(lapDateFilter === 'custom') {
+    const dFrom = document.getElementById('lap-date-from')?.value;
+    const dTo = document.getElementById('lap-date-to')?.value;
+    if(dFrom && dTo) {
+      start = new Date(dFrom);
+      end = new Date(dTo);
+      end.setHours(23,59,59,999);
+    }
+  } else if(lapDateFilter === 'today') {
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    end = new Date(start); end.setHours(23,59,59,999);
+  } else if(lapDateFilter === 'week') {
+    start = new Date(now); start.setDate(now.getDate()-7); start.setHours(0,0,0,0);
+  } else if(lapDateFilter === 'month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  return { start, end };
+}
+
+function inRangeByDate(value, range) {
+  if(!value) return false;
+  const d = new Date(value);
+  if(range.start && d < range.start) return false;
+  if(range.end && d > range.end) return false;
+  return true;
+}
+
+function populateExpenseProducts() {
+  const sel = document.getElementById('exp-product');
+  if(!sel) return;
+  const opts = allProduk.map(p => `<option value="${p.id}">${p.icon||''} ${p.nama}</option>`).join('');
+  sel.innerHTML = `<option value="">Pilih menu/produk</option>${opts}`;
+}
+
+function toggleExpenseProduct() {
+  const tipe = document.getElementById('exp-type')?.value;
+  const wrap = document.getElementById('exp-product-wrap');
+  if(wrap) wrap.style.display = tipe === 'bahan' ? '' : 'none';
+}
+
+async function renderExpensePage() {
+  populateExpenseProducts();
+  toggleExpenseProduct();
+  const dateInput = document.getElementById('exp-date');
+  if(dateInput && !dateInput.value) dateInput.value = expenseDateValue();
+  try {
+    showLoading();
+    const exps = await sb.query('pengeluaran', { select: '*', filter: { 'gerai_id=eq.': currentGerai.id }, order: 'waktu.desc', limit: 80 });
+    window._expMap = {};
+    exps.forEach(e => { window._expMap[e.id] = e; });
+    const productMap = Object.fromEntries(allProduk.map(p => [p.id, p]));
+    document.getElementById('expense-list').innerHTML = exps.length ? exps.map(e => {
+      const m = expenseMeta(e);
+      const p = productMap[m.produk_id];
+      return `<div class="expense-row" id="exp-${e.id}">
+        <div class="expense-top">
+          <div>
+            <div class="expense-title">${(m.tipe||'lainnya').toUpperCase()}${p ? ' untuk ' + (p.icon||'') + ' ' + p.nama : ''}</div>
+            <div class="expense-meta">${new Date(m.waktu).toLocaleString('id-ID')}${m.catatan ? ' - ' + m.catatan : ''}</div>
+          </div>
+          <div class="expense-amount">-${rp(m.amount)}</div>
+        </div>
+        <button class="btn-action btn-red btn-xs" onclick="deleteExpense('${e.id}')">Hapus</button>
+      </div>`;
+    }).join('') : '<div style="text-align:center;padding:16px;color:var(--text3)">Belum ada pengeluaran</div>';
+  } catch(e) {
+    showToast('Gagal memuat pengeluaran: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+async function saveRealExpense() {
+  const tipe = document.getElementById('exp-type').value;
+  const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
+  const waktu = document.getElementById('exp-date').value;
+  const produk_id = tipe === 'bahan' ? document.getElementById('exp-product').value : '';
+  const note = document.getElementById('exp-note').value.trim();
+  if(!amount) { showToast('Isi jumlah pengeluaran!', 'error'); return; }
+  if(tipe === 'bahan' && !produk_id) { showToast('Pilih menu untuk pengeluaran bahan!', 'error'); return; }
+  showLoading();
+  try {
+    await sb.insert('pengeluaran', {
+      gerai_id: currentGerai.id,
+      tipe,
+      amount,
+      waktu: waktu ? new Date(waktu).toISOString() : new Date().toISOString(),
+      catatan: packExpenseNote({ tipe, produk_id }, note)
+    });
+    showToast('Pengeluaran real disimpan!', 'success');
+    document.getElementById('exp-amount').value = '';
+    document.getElementById('exp-note').value = '';
+    document.getElementById('exp-date').value = expenseDateValue();
+    await renderExpensePage();
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  finally { hideLoading(); }
+}
+
+async function exportExpenseCSV() {
+  showLoading();
+  try {
+    const exps = await sb.query('pengeluaran', { select: '*', filter: { 'gerai_id=eq.': currentGerai.id }, order: 'waktu.desc', limit: 1000 });
+    const productMap = Object.fromEntries(allProduk.map(p => [p.id, p.nama]));
+    const rows = [['Waktu','Jenis','Produk/Menu','Jumlah','Keterangan'],
+      ...exps.map(e => {
+        const m = expenseMeta(e);
+        return [new Date(m.waktu).toLocaleString('id-ID'), m.tipe, productMap[m.produk_id] || '', m.amount, m.catatan || ''];
+      })];
+    downloadCSV(rows, `pengeluaran-${currentGerai.nama}.csv`);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  finally { hideLoading(); }
+}
+
 // ══════════════════════════════════════════════════════
 //  PROFIL GERAI (Owner)
 // ══════════════════════════════════════════════════════
@@ -2748,6 +2955,13 @@ async function renderLaporan() {
     // Pay filter
     if(lapPayFilter !== 'all') trxs = trxs.filter(t => t.metode === lapPayFilter);
 
+    const range = getLapRange();
+    const expAll = await sb.query('pengeluaran', { select: '*', filter: { 'gerai_id=eq.': currentGerai.id }, order: 'waktu.desc', limit: 1000 });
+    const exps = expAll.filter(e => inRangeByDate(e.waktu || e.created_at, range));
+    const expMetaList = exps.map(e => ({ row: e, meta: expenseMeta(e) }));
+    const totalExpenses = expMetaList.reduce((s,e) => s + e.meta.amount, 0);
+    const bahanExpenses = expMetaList.filter(e => e.meta.tipe === 'bahan').reduce((s,e) => s + e.meta.amount, 0);
+
     // Stats
     const filters = [{id:'today',l:'Hari Ini'},{id:'week',l:'7 Hari'},{id:'month',l:'Bulan Ini'},{id:'all',l:'Semua'}];
     document.getElementById('lap-date-filter').innerHTML = filters.map(f =>
@@ -2757,12 +2971,13 @@ async function renderLaporan() {
     const totalPend = trxs.reduce((s,t) => s+(t.total||0), 0);
     const totalModal = trxs.reduce((s,t) => s+(t.items||[]).reduce((ss,i) => { const p=allProduk.find(x=>x.id===i.id); return ss+(p?p.harga_modal*i.qty:0); }, 0), 0);
     const laba = totalPend - totalModal;
+    const labaBersih = totalPend - totalExpenses;
 
     document.getElementById('lap-stat-grid').innerHTML = `
       <div class="stat-card highlight"><div class="sc-label">Total Penjualan</div><div class="sc-val">${rp(totalPend)}</div><div class="sc-sub">${trxs.length} transaksi</div></div>
-      <div class="stat-card"><div class="sc-label">Total Modal</div><div class="sc-val" style="color:var(--red)">${rp(totalModal)}</div></div>
+      <div class="stat-card"><div class="sc-label">Pengeluaran Real</div><div class="sc-val" style="color:var(--red)">${rp(totalExpenses)}</div><div class="sc-sub">Bahan: ${rp(bahanExpenses)}</div></div>
       <div class="stat-card"><div class="sc-label">Laba Kotor</div><div class="sc-val" style="color:${laba>=0?'var(--green)':'var(--red)'}">${rp(laba)}</div></div>
-      <div class="stat-card"><div class="sc-label">Transaksi</div><div class="sc-val">${trxs.length}</div></div>`;
+      <div class="stat-card"><div class="sc-label">Laba Bersih Real</div><div class="sc-val" style="color:${labaBersih>=0?'var(--green)':'var(--red)'}">${rp(labaBersih)}</div><div class="sc-sub">Penjualan - pengeluaran</div></div>`;
 
     // Bar chart — last 7 days
     const days = [];
@@ -2795,25 +3010,70 @@ async function renderLaporan() {
       `<div class="stok-balance-row"><span>${x.icon||'📦'} ${x.nama}</span><span>${x.qty}x · ${rp(x.rev)}</span></div>`
     ).join('') || '<div style="text-align:center;padding:12px;color:var(--text3)">Belum ada data</div>';
 
+    // HPP and margin by product/menu based on real bahan expenses in selected timeline
+    const productPerf = {};
+    trxs.forEach(t => (t.items||[]).forEach(i => {
+      if(!productPerf[i.id]) productPerf[i.id] = { id:i.id, nama:i.nama, icon:i.icon, qty:0, revenue:0, bahan:0 };
+      productPerf[i.id].qty += i.qty || 0;
+      productPerf[i.id].revenue += i.sub || ((i.harga||0) * (i.qty||0));
+    }));
+    expMetaList.filter(e => e.meta.tipe === 'bahan' && e.meta.produk_id).forEach(e => {
+      const p = allProduk.find(x => x.id === e.meta.produk_id);
+      if(!productPerf[e.meta.produk_id]) productPerf[e.meta.produk_id] = { id:e.meta.produk_id, nama:p?.nama||'Produk', icon:p?.icon||'', qty:0, revenue:0, bahan:0 };
+      productPerf[e.meta.produk_id].bahan += e.meta.amount;
+    });
+    const hppRows = Object.values(productPerf).sort((a,b) => (b.revenue - b.bahan) - (a.revenue - a.bahan));
+    document.getElementById('lap-hpp-list').innerHTML = hppRows.length ? `
+      <div class="hpp-row head"><span>Produk/Menu</span><span>Terjual</span><span>HPP/Unit</span><span>Margin</span><span>%</span></div>
+      ${hppRows.map(x => {
+        const hppUnit = x.qty ? x.bahan / x.qty : x.bahan;
+        const margin = x.revenue - x.bahan;
+        const pct = x.revenue ? (margin / x.revenue) * 100 : 0;
+        return `<div class="hpp-row">
+          <span>${x.icon||''} ${x.nama}<br><small style="color:var(--text3)">Omzet ${rp(x.revenue)} - bahan ${rp(x.bahan)}</small></span>
+          <span>${x.qty}x</span>
+          <span>${rp(hppUnit)}</span>
+          <span style="color:${margin>=0?'var(--green)':'var(--red)'}">${rp(margin)}</span>
+          <span style="color:${margin>=0?'var(--green)':'var(--red)'}">${pct.toFixed(1)}%</span>
+        </div>`;
+      }).join('')}` : '<div style="text-align:center;padding:12px;color:var(--text3)">Belum ada data HPP pada periode ini</div>';
+
     // Expenses
-    const exps = await sb.query('pengeluaran', { select: '*', filter: { 'gerai_id=eq.': currentGerai.id }, order: 'waktu.desc', limit: 30 });
     const isOwnerExp = currentUser?.role === 'owner' || currentUser?.role === 'multi';
     window._expMap = {};
     exps.forEach(e => { window._expMap[e.id] = e; });
     document.getElementById('lap-cashflow-list').innerHTML = [
       `<div class="cash-flow-item cf-in" style="margin-bottom:6px"><span>💰 Total Penjualan</span><span style="font-weight:700">${rp(totalPend)}</span></div>`,
-      ...exps.map(e => `
+      ...exps.slice(0,30).map(e => {
+        const m = expenseMeta(e);
+        const p = allProduk.find(x => x.id === m.produk_id);
+        return `
         <div class="cash-flow-item cf-out" id="exp-${e.id}" style="flex-direction:column;align-items:stretch;gap:4px">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span>💸 ${e.tipe||'Pengeluaran'}${e.catatan?' — '+e.catatan:''}</span>
-            <span style="font-weight:700;color:var(--red);flex-shrink:0;margin-left:8px">-${rp(e.amount)}</span>
+            <span>💸 ${m.tipe||'Pengeluaran'}${p?' - '+p.nama:''}${m.catatan?' - '+m.catatan:''}</span>
+            <span style="font-weight:700;color:var(--red);flex-shrink:0;margin-left:8px">-${rp(m.amount)}</span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:11px;color:var(--text3)">${new Date(e.waktu||e.created_at).toLocaleString('id-ID')}</span>
+            <span style="font-size:11px;color:var(--text3)">${new Date(m.waktu).toLocaleString('id-ID')}</span>
             ${isOwnerExp ? `<button class="btn-action btn-red btn-xs" style="padding:3px 8px;font-size:11px" onclick="deleteExpense('${e.id}')">🗑️ Hapus</button>` : ''}
           </div>
-        </div>`)
+        </div>`;
+      })
     ].join('') || '<div style="text-align:center;padding:12px;color:var(--text3)">Belum ada data</div>';
+
+    const productMap = Object.fromEntries(allProduk.map(p => [p.id, p]));
+    document.getElementById('lap-expense-detail-list').innerHTML = expMetaList.length ? expMetaList.map(({row:e, meta:m}) => {
+      const p = productMap[m.produk_id];
+      return `<div class="expense-row" id="lap-exp-${e.id}">
+        <div class="expense-top">
+          <div>
+            <div class="expense-title">${(m.tipe||'lainnya').toUpperCase()}${p ? ' untuk ' + (p.icon||'') + ' ' + p.nama : ''}</div>
+            <div class="expense-meta">${new Date(m.waktu).toLocaleString('id-ID')}${m.catatan ? ' - ' + m.catatan : ''}</div>
+          </div>
+          <div class="expense-amount">-${rp(m.amount)}</div>
+        </div>
+      </div>`;
+    }).join('') : '<div style="text-align:center;padding:12px;color:var(--text3)">Tidak ada pengeluaran di periode ini</div>';
 
     // Stok balance
     document.getElementById('lap-stok-balance').innerHTML = allProduk.filter(p=>!p.is_jasa).map(p => {
@@ -2861,10 +3121,11 @@ async function renderLaporan() {
 async function deleteExpense(expId) {
   const exp = window._expMap?.[expId];
   if(!exp) { showToast('Data tidak ditemukan', 'error'); return; }
+  const m = expenseMeta(exp);
   showConfirm(`Hapus pengeluaran ini?
 
-💸 ${exp.tipe||'Pengeluaran'}${exp.catatan?' — '+exp.catatan:''}
-Jumlah: ${rp(exp.amount)}
+💸 ${m.tipe||'Pengeluaran'}${m.catatan?' - '+m.catatan:''}
+Jumlah: ${rp(m.amount)}
 
 ⚠️ Aksi ini tidak bisa dibatalkan.`, async () => {
     showLoading();
@@ -2955,7 +3216,7 @@ async function addExpense() {
   if(!amount) { showToast('Isi jumlah pengeluaran!', 'error'); return; }
   showLoading();
   try {
-    await sb.insert('pengeluaran', { gerai_id: currentGerai.id, tipe, amount, catatan });
+    await sb.insert('pengeluaran', { gerai_id: currentGerai.id, tipe, amount, waktu: new Date().toISOString(), catatan: packExpenseNote({ tipe, produk_id: '' }, catatan) });
     showToast('Pengeluaran dicatat!', 'success');
     document.getElementById('lap-expense-amt').value = '';
     document.getElementById('lap-expense-note').value = '';
@@ -2999,3 +3260,4 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
