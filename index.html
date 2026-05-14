@@ -1230,8 +1230,12 @@ const sb = {
     return res.json();
   },
   async update(table, data, filter) {
+    if (!filter || Object.keys(filter).length === 0) throw new Error('[sb.update] Filter wajib diisi!');
     let url = `${SUPABASE_URL}/rest/v1/${table}?`;
-    for (const [k, v] of Object.entries(filter)) url += `${k}${v}&`;
+    for (const [k, v] of Object.entries(filter)) {
+      if (v === undefined || v === null || v === '') throw new Error(`[sb.update] Filter "${k}" nilainya kosong (${v}). Dibatalkan.`);
+      url += `${k}${v}&`;
+    }
     const res = await fetch(url, {
       method: 'PATCH',
       headers: {
@@ -1243,7 +1247,11 @@ const sb = {
       body: JSON.stringify(data)
     });
     if (!res.ok) throw new Error(await res.text());
-    return res.json();
+    const result = await res.json();
+    if (Array.isArray(result) && result.length === 0) {
+      console.warn(`[sb.update] ⚠️ ${table}: 0 baris berubah! Filter:`, filter, 'Data:', data);
+    }
+    return result;
   },
   async delete(table, filter) {
     let url = `${SUPABASE_URL}/rest/v1/${table}?`;
@@ -2151,7 +2159,7 @@ function hitungKembalian() {
 async function prosesTransaksi() {
   const items = Object.keys(cart).map(id => {
     const p = allProduk.find(x => x.id === id);
-    return p ? { id: p.id, nama: p.nama, icon: p.icon, harga: p.harga_jual, qty: cart[id], sub: p.harga_jual * cart[id] } : null;
+    return p ? { id: p.id, nama: p.nama, icon: p.icon, harga: p.harga_jual, qty: cart[id], sub: p.harga_jual * cart[id], is_jasa: p.is_jasa } : null;
   }).filter(Boolean);
 
   if(!items.length) { showToast('Keranjang kosong!', 'error'); return; }
@@ -2168,27 +2176,39 @@ async function prosesTransaksi() {
 
   showLoading();
   try {
+    // FETCH STOK TERBARU DARI DB — cegah race condition 2 kasir bersamaan
+    const nonJasaItems = items.filter(i => !i.is_jasa);
+    const stokDB = {};
+    if (nonJasaItems.length > 0) {
+      const fetches = await Promise.all(nonJasaItems.map(i => sb.query('produk', { select: 'id,stok,nama', filter: { 'id=eq.': i.id } })));
+      fetches.forEach(rows => { if (rows[0]) stokDB[rows[0].id] = rows[0].stok ?? 0; });
+      // Validasi stok cukup
+      for (const item of nonJasaItems) {
+        const dbStok = stokDB[item.id];
+        if (dbStok === undefined) throw new Error(`Produk "${item.nama}" tidak ditemukan di database.`);
+        if (dbStok < item.qty) throw new Error(`Stok "${item.nama}" tidak cukup! Server: ${dbStok}, dibutuhkan: ${item.qty}.`);
+      }
+    }
+
     // Insert transaksi
-    const trxData = {
-      gerai_id: currentGerai.id,
-      kasir_id: currentUser.id,
-      items: items,
+    await sb.insert('transaksi', {
+      gerai_id: currentGerai.id, kasir_id: currentUser.id, items,
       subtotal, diskon: disc, total, bayar: bayar||null, kembalian: kembalian||null,
       metode: payMethod, debt_id: debtId||null
-    };
-    await sb.insert('transaksi', trxData);
+    });
 
-    // Update stok produk (hanya non-jasa)
+    // Update stok pakai nilai fresh dari DB
     for(const item of items) {
       const p = allProduk.find(x => x.id === item.id);
-      if(p && !p.is_jasa) {
-        const newStok = Math.max(0, (p.stok||0) - item.qty);
+      if(!item.is_jasa) {
+        const freshStok = stokDB[item.id] ?? (p?.stok ?? 0);
+        const newStok = Math.max(0, freshStok - item.qty);
+        const newSold = (p?.sold||0) + item.qty;
+        await sb.update('produk', { stok: newStok, sold: newSold }, { 'id=eq.': item.id });
+        if(p) { p.stok = newStok; p.sold = newSold; }
+      } else if(p) {
         const newSold = (p.sold||0) + item.qty;
-        await sb.update('produk', { stok: newStok, sold: newSold }, { 'id=eq.': p.id });
-        p.stok = newStok; p.sold = newSold;
-      } else if(p && p.is_jasa) {
-        const newSold = (p.sold||0) + item.qty;
-        await sb.update('produk', { sold: newSold }, { 'id=eq.': p.id });
+        await sb.update('produk', { sold: newSold }, { 'id=eq.': item.id });
         p.sold = newSold;
       }
     }
@@ -2483,24 +2503,42 @@ async function approveRequest(reqId) {
   showLoading();
   try {
     const reqs = await sb.query('stok_requests', { select: '*', filter: { 'id=eq.': reqId } });
-    const req = reqs[0]; if(!req) throw new Error('Request not found');
-    const catatan = document.getElementById('req-note-'+reqId)?.value || '';
+    const req = reqs[0];
+    if (!req) throw new Error('Request tidak ditemukan.');
+    if (req.status !== 'pending') { showToast('Request sudah diproses sebelumnya.', 'error'); await renderVerifStokPage(); return; }
 
-    // Update stok produk
-    const p = allProduk.find(x => x.id === req.produk_id);
-    if(p) {
-      const newStok = req.tipe === 'masuk' ? (p.stok||0) + req.qty : Math.max(0, (p.stok||0) - req.qty);
-      await sb.update('produk', { stok: newStok }, { 'id=eq.': req.produk_id });
-      p.stok = newStok;
+    const catatan = document.getElementById('req-note-' + reqId)?.value || '';
+
+    // FETCH STOK LANGSUNG DARI DATABASE — bukan dari allProduk yang bisa kosong
+    const dbRows = await sb.query('produk', { select: 'id,nama,stok,is_jasa', filter: { 'id=eq.': req.produk_id } });
+    if (!dbRows.length) throw new Error('Produk tidak ditemukan di database.');
+    const dbProduk = dbRows[0];
+
+    if (!dbProduk.is_jasa) {
+      const stokLama = dbProduk.stok ?? 0;
+      const newStok = req.tipe === 'masuk' ? stokLama + req.qty : Math.max(0, stokLama - req.qty);
+
+      const result = await sb.update('produk', { stok: newStok }, { 'id=eq.': req.produk_id });
+      if (Array.isArray(result) && result.length === 0) throw new Error('Update stok gagal — 0 baris berubah di database.');
+
+      // Sync cache lokal
+      const p = allProduk.find(x => x.id === req.produk_id);
+      if (p) p.stok = newStok;
+
+      showToast(`✅ Stok "${dbProduk.nama}": ${stokLama} → ${newStok}`, 'success');
+    } else {
+      showToast('✅ Disetujui (produk jasa — stok tidak berubah)', 'success');
     }
 
     await sb.update('stok_requests', { status: 'approved', reviewed_by: currentUser.id, catatan }, { 'id=eq.': reqId });
-    showToast('Permintaan disetujui! Stok otomatis diperbarui.', 'success');
     checkLowStock();
+    renderKasir();
     await renderVerifStokPage();
     await checkPendingRequests();
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
-  finally { hideLoading(); }
+  } catch(e) {
+    showToast('❌ ' + e.message, 'error');
+    console.error('[approveRequest]', e);
+  } finally { hideLoading(); }
 }
 
 async function rejectRequest(reqId) {
