@@ -1278,6 +1278,51 @@ body[data-page="kasir"].has-low-stock #page-kasir.active{padding-top:0}
     background:linear-gradient(135deg,#f8fbff 0%,#eef6ff 100%)!important;
   }
 }
+
+/* Extra mobile tightening for search, filters, and draft visibility. */
+@media(max-width:639px){
+  #page-kasir .search-wrap{
+    top:46px!important;
+    padding:4px 10px 4px!important;
+  }
+  #page-kasir .search-bar{
+    min-height:40px!important;
+    padding:7px 11px!important;
+    border-radius:16px!important;
+  }
+  #page-kasir .cat-scroll{
+    padding:4px 10px 7px!important;
+    margin-top:0!important;
+  }
+  #page-kasir .cat-chip{
+    min-width:112px!important;
+    min-height:50px!important;
+    padding:7px 9px!important;
+    border-radius:16px!important;
+  }
+  .cat-chip .cat-ico{width:28px!important;height:28px!important;font-size:15px!important;border-radius:12px}
+  .cat-chip .cat-name{font-size:10.5px!important}
+  .cat-chip .cat-count{font-size:8.5px!important}
+  #draft-bar{
+    display:none;
+    margin:0 10px 6px!important;
+    padding:0!important;
+    border-radius:16px!important;
+    background:transparent!important;
+    border:none!important;
+  }
+  #draft-bar button{
+    min-height:38px;
+    border-radius:15px!important;
+    background:#eef6ff!important;
+    border:1px solid rgba(37,99,235,.14)!important;
+    color:#2563eb!important;
+    box-shadow:0 10px 22px rgba(37,99,235,.08);
+  }
+  body[data-page="kasir"].has-low-stock #app-low-stock-banner{
+    padding-top:4px!important;
+  }
+}
 </style>
 </head>
 <body>
@@ -2564,7 +2609,7 @@ async function loadApp() {
 
     renderKasir();
     checkLowStock();
-    updateDraftBar();
+    await updateDraftBar();
     if(currentUser.role === 'owner' || currentUser.role === 'multi') checkPendingRequests();
     showToast('Selamat datang, ' + (currentUser.nama||currentUser.username) + '! 👋', 'success');
   } catch(e) {
@@ -2607,6 +2652,7 @@ function goPage(p) {
   if(nav) nav.classList.add('active');
 
   if(p === 'kasir') renderKasir();
+  if(p === 'kasir') updateDraftBar();
   if(p === 'stok-request') renderStokRequestPage();
   if(p === 'verif-stok') renderVerifStokPage();
   if(p === 'produk') { renderProdTable(); buildIconPicker('prod-icon-picker','prod-icon',ICONS); renderProdKatSelect(); }
@@ -2769,9 +2815,11 @@ function deleteDraft(draftId) {
 
 async function updateDraftBar() {
   try {
+    const filter = {'gerai_id=eq.': currentGerai.id};
+    if(currentUser?.id) filter['user_id=eq.'] = currentUser.id;
     _drafts = await sb.query('drafts', {
       select: '*',
-      filter: {'gerai_id=eq.': currentGerai.id},
+      filter,
       order: 'created_at.desc',
       limit: 20
     });
@@ -2795,9 +2843,11 @@ async function openDraftPanel() {
   var el = document.getElementById('draft-list');
   if(el) el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">⏳ Memuat...</div>';
   try {
+    const filter = {'gerai_id=eq.': currentGerai.id};
+    if(currentUser?.id) filter['user_id=eq.'] = currentUser.id;
     _drafts = await sb.query('drafts', {
       select: '*',
-      filter: {'gerai_id=eq.': currentGerai.id},
+      filter,
       order: 'created_at.desc',
       limit: 20
     });
