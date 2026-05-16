@@ -2018,8 +2018,12 @@ const sb = {
     return result;
   },
   async delete(table, filter) {
+    if (!filter || Object.keys(filter).length === 0) throw new Error('[sb.delete] Filter wajib diisi!');
     let url = `${SUPABASE_URL}/rest/v1/${table}?`;
-    for (const [k, v] of Object.entries(filter)) url += `${k}${v}&`;
+    for (const [k, v] of Object.entries(filter)) {
+      if (v === undefined || v === null || v === '') throw new Error(`[sb.delete] Filter "${k}" nilainya kosong (${v}). Dibatalkan.`);
+      url += `${k}${encodeURIComponent(v)}&`;
+    }
     const res = await fetch(url, {
       method: 'DELETE',
       headers: {
@@ -2254,8 +2258,10 @@ function goAdminLogin() {
 }
 
 function doLogout() {
+  stopDraftPolling();
   currentUser = null; currentGerai = null;
   cart = {}; allProduk = []; selectedGeraiId = null;
+  _drafts = []; _activeDraftId = null;
   showScreen('screen-landing');
 }
 
@@ -2660,8 +2666,8 @@ function goPage(p) {
   if(page) page.classList.add('active');
   if(nav) nav.classList.add('active');
 
-  if(p === 'kasir') renderKasir();
-  if(p === 'kasir') updateDraftBar();
+  if(p === 'kasir') { renderKasir(); updateDraftBar(); startDraftPolling(); }
+  else { stopDraftPolling(); }
   if(p === 'stok-request') renderStokRequestPage();
   if(p === 'verif-stok') renderVerifStokPage();
   if(p === 'produk') { renderProdTable(); buildIconPicker('prod-icon-picker','prod-icon',ICONS); renderProdKatSelect(); }
@@ -2783,17 +2789,35 @@ function removeLocalDraft(draftId) {
   setLocalDrafts(getLocalDrafts().filter(function(d){ return d.id !== draftId; }));
 }
 
-function mergeDrafts(dbDrafts, localDrafts) {
+function mergeDrafts(dbDrafts, localDrafts, shouldCleanLocal) {
   const map = {};
-  (localDrafts || []).forEach(function(d){ if(d && d.id) map[d.id] = d; });
-  (dbDrafts || []).forEach(function(d){ if(d && d.id) map[d.id] = d; });
+  const dbIds = {};
+  (dbDrafts || []).forEach(function(d){ if(d && d.id) { map[d.id] = d; dbIds[d.id] = true; } });
+  (localDrafts || []).forEach(function(d){
+    if(!d || !d.id) return;
+    if(d._localOnly || String(d.id).startsWith('local_')) {
+      map[d.id] = d;
+    } else if(dbIds[d.id]) {
+      // DB version already in map — skip local mirror
+    } else if(shouldCleanLocal) {
+      // Draft was in DB before but no longer exists — stale local mirror, skip it
+      removeLocalDraft(d.id);
+    } else {
+      map[d.id] = d;
+    }
+  });
   return Object.values(map).sort(function(a,b) {
     return new Date(b.created_at || 0) - new Date(a.created_at || 0);
   }).slice(0, 20);
 }
 
-async function fetchDraftsForGerai() {
+let _lastDraftFetch = 0;
+async function fetchDraftsForGerai(force) {
+  var now = Date.now();
+  if(!force && now - _lastDraftFetch < 3000) return _drafts;
+  _lastDraftFetch = now;
   let dbDrafts = [];
+  let dbOk = false;
   try {
     dbDrafts = await sb.query('drafts', {
       select: '*',
@@ -2801,10 +2825,11 @@ async function fetchDraftsForGerai() {
       order: 'created_at.desc',
       limit: 20
     });
+    dbOk = true;
   } catch(e) {
     console.warn('fetchDraftsForGerai failed:', e);
   }
-  _drafts = mergeDrafts(dbDrafts, getLocalDrafts());
+  _drafts = mergeDrafts(dbDrafts, getLocalDrafts(), dbOk);
   return _drafts;
 }
 
@@ -2847,21 +2872,16 @@ async function saveDraft() {
 }
 
 async function loadDraft(draftId) {
-  var draft = _drafts.find(function(d){ return d.id === draftId; });
+  var draft = _drafts.find(function(d){ return String(d.id) === String(draftId); });
   if(!draft) { showToast('Draft tidak ditemukan', 'error'); return; }
   cart = Object.assign({}, draft.cart_data || {});
   _activeDraftId = draftId;
   closeDraftPanel();
-  // Hapus draft dari DB saat dilanjutkan
-  try {
-    if(!draft._localOnly && !String(draftId).startsWith('local_')) {
-      await sb.delete('drafts', {'id=eq.': draftId});
-    }
-  } catch(e) {
-    console.warn('Gagal hapus draft saat load:', e);
+  if(!draft._localOnly && !String(draftId).startsWith('local_')) {
+    try { await sb.delete('drafts', {'id=eq.': draftId}); } catch(e) { console.warn('Gagal hapus draft saat load:', e); }
   }
   removeLocalDraft(draftId);
-  _drafts = _drafts.filter(function(d){ return d.id !== draftId; });
+  _drafts = _drafts.filter(function(d){ return String(d.id) !== String(draftId); });
   await updateDraftBar();
   setTimeout(function() {
     var discEl = document.getElementById('cart-disc');
@@ -2875,16 +2895,16 @@ async function loadDraft(draftId) {
 }
 
 function deleteDraft(draftId) {
-  var draft = _drafts.find(function(d){ return d.id === draftId; });
+  var draft = _drafts.find(function(d){ return String(d.id) === String(draftId); });
   var nama = draft ? draft.label : 'ini';
   showConfirm('Hapus draft "' + nama + '"?', async function() {
     showLoading();
     try {
       if(!draft?._localOnly && !String(draftId).startsWith('local_')) {
-        await sb.delete('drafts', {'id=eq.': draftId});
+        try { await sb.delete('drafts', {'id=eq.': draftId}); } catch(e) { console.warn('DB delete draft gagal (lanjut bersihkan lokal):', e); }
       }
       removeLocalDraft(draftId);
-      _drafts = _drafts.filter(function(d){ return d.id !== draftId; });
+      _drafts = _drafts.filter(function(d){ return String(d.id) !== String(draftId); });
       await updateDraftBar();
       renderDraftList();
       showToast('Draft dihapus ✓', 'success');
@@ -2894,8 +2914,8 @@ function deleteDraft(draftId) {
   });
 }
 
-async function updateDraftBar() {
-  await fetchDraftsForGerai();
+async function updateDraftBar(skipFetch) {
+  if(!skipFetch) await fetchDraftsForGerai();
   var bar = document.getElementById('draft-bar');
   var labelEl = document.getElementById('draft-bar-label');
   if(!bar) return;
@@ -2911,13 +2931,42 @@ async function openDraftPanel() {
   document.getElementById('draft-panel').classList.add('open');
   var el = document.getElementById('draft-list');
   if(el) el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">⏳ Memuat...</div>';
-  await fetchDraftsForGerai();
+  await fetchDraftsForGerai(true);
   renderDraftList();
 }
 
 function closeDraftPanel() {
   document.getElementById('draft-panel').classList.remove('open');
 }
+
+// --- Draft sync: polling + cross-tab ---
+let _draftPollTimer = null;
+function startDraftPolling() {
+  stopDraftPolling();
+  _draftPollTimer = setInterval(async function() {
+    if(!currentGerai) return;
+    var oldCount = _drafts.length;
+    var oldIds = _drafts.map(function(d){ return d.id; }).join(',');
+    await fetchDraftsForGerai(true);
+    var newIds = _drafts.map(function(d){ return d.id; }).join(',');
+    if(oldIds !== newIds) {
+      updateDraftBar(true);
+      if(document.getElementById('draft-panel')?.classList.contains('open')) renderDraftList();
+    }
+  }, 15000);
+}
+function stopDraftPolling() {
+  if(_draftPollTimer) { clearInterval(_draftPollTimer); _draftPollTimer = null; }
+}
+
+window.addEventListener('storage', function(e) {
+  if(e.key && e.key.startsWith('itungaju_drafts_') && currentGerai) {
+    fetchDraftsForGerai(true).then(function() {
+      updateDraftBar(true);
+      if(document.getElementById('draft-panel')?.classList.contains('open')) renderDraftList();
+    });
+  }
+});
 
 function renderDraftList() {
   var el = document.getElementById('draft-list');
