@@ -1282,8 +1282,11 @@ body[data-page="kasir"].has-low-stock #page-kasir.active{padding-top:0}
 /* Extra mobile tightening for search, filters, and draft visibility. */
 @media(max-width:639px){
   #page-kasir .search-wrap{
-    top:46px!important;
-    padding:4px 10px 4px!important;
+    position:relative!important;
+    top:auto!important;
+    transform:none!important;
+    z-index:10!important;
+    padding:2px 10px 3px!important;
   }
   #page-kasir .search-bar{
     min-height:40px!important;
@@ -1291,8 +1294,14 @@ body[data-page="kasir"].has-low-stock #page-kasir.active{padding-top:0}
     border-radius:16px!important;
   }
   #page-kasir .cat-scroll{
-    padding:4px 10px 7px!important;
+    position:relative!important;
+    top:auto!important;
+    transform:none!important;
+    z-index:9!important;
+    padding:3px 10px 8px!important;
     margin-top:0!important;
+    overflow-x:auto!important;
+    overflow-y:visible!important;
   }
   #page-kasir .cat-chip{
     min-width:112px!important;
@@ -2742,6 +2751,63 @@ function clearCart() { cart = {}; _activeDraftId = null; updateFAB(); closeCart(
    DRAFT PESANAN — Supabase
    ══════════════════════════════════════════════════ */
 
+function draftStorageKey() {
+  return 'itungaju_drafts_' + (currentGerai?.id || 'global');
+}
+
+function getLocalDrafts() {
+  try {
+    const drafts = JSON.parse(localStorage.getItem(draftStorageKey()) || '[]');
+    return Array.isArray(drafts) ? drafts : [];
+  } catch(e) {
+    return [];
+  }
+}
+
+function setLocalDrafts(drafts) {
+  try {
+    localStorage.setItem(draftStorageKey(), JSON.stringify((drafts || []).slice(0, 20)));
+  } catch(e) {
+    console.warn('Gagal simpan draft lokal:', e);
+  }
+}
+
+function addLocalDraft(draft) {
+  if(!draft || !draft.id) return;
+  const next = getLocalDrafts().filter(function(d){ return d.id !== draft.id; });
+  next.unshift(Object.assign({}, draft, { _localMirror: true }));
+  setLocalDrafts(next);
+}
+
+function removeLocalDraft(draftId) {
+  setLocalDrafts(getLocalDrafts().filter(function(d){ return d.id !== draftId; }));
+}
+
+function mergeDrafts(dbDrafts, localDrafts) {
+  const map = {};
+  (localDrafts || []).forEach(function(d){ if(d && d.id) map[d.id] = d; });
+  (dbDrafts || []).forEach(function(d){ if(d && d.id) map[d.id] = d; });
+  return Object.values(map).sort(function(a,b) {
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+  }).slice(0, 20);
+}
+
+async function fetchDraftsForGerai() {
+  let dbDrafts = [];
+  try {
+    dbDrafts = await sb.query('drafts', {
+      select: '*',
+      filter: {'gerai_id=eq.': currentGerai.id},
+      order: 'created_at.desc',
+      limit: 20
+    });
+  } catch(e) {
+    console.warn('fetchDraftsForGerai failed:', e);
+  }
+  _drafts = mergeDrafts(dbDrafts, getLocalDrafts());
+  return _drafts;
+}
+
 async function saveDraft() {
   if(!Object.keys(cart).length) { showToast('Keranjang kosong!', 'error'); return; }
   const disc = parseFloat(document.getElementById('cart-disc').value) || 0;
@@ -2752,21 +2818,30 @@ async function saveDraft() {
     var p = allProduk.find(function(x){ return x.id === id; });
     return p ? {id: id, nama: p.nama, qty: cart[id], harga: p.harga_jual} : null;
   }).filter(Boolean);
+  const draftPayload = {
+    gerai_id: currentGerai.id,
+    user_id: currentUser.id,
+    label: label,
+    cart_data: Object.assign({}, cart),
+    disc: disc,
+    items: cartItems,
+    created_at: new Date().toISOString()
+  };
   showLoading();
   try {
-    await sb.insert('drafts', {
-      gerai_id: currentGerai.id,
-      user_id: currentUser.id,
-      label: label,
-      cart_data: cart,
-      disc: disc,
-      items: cartItems
-    });
+    const inserted = await sb.insert('drafts', draftPayload);
+    const savedDraft = Array.isArray(inserted) && inserted[0]
+      ? inserted[0]
+      : Object.assign({}, draftPayload, { id: 'local_' + uid(), _localOnly: true });
+    addLocalDraft(savedDraft);
     clearCart();
     await updateDraftBar();
     showToast('Draft "' + label + '" disimpan ✓', 'success');
   } catch(e) {
-    showToast('Gagal simpan draft: ' + e.message, 'error');
+    addLocalDraft(Object.assign({}, draftPayload, { id: 'local_' + uid(), _localOnly: true }));
+    clearCart();
+    await updateDraftBar();
+    showToast('Draft tersimpan lokal. Nanti tetap muncul di kasir.', 'success');
     console.error('saveDraft error:', e);
   } finally { hideLoading(); }
 }
@@ -2779,11 +2854,14 @@ async function loadDraft(draftId) {
   closeDraftPanel();
   // Hapus draft dari DB saat dilanjutkan
   try {
-    await sb.delete('drafts', {'id=eq.': draftId});
-    _drafts = _drafts.filter(function(d){ return d.id !== draftId; });
+    if(!draft._localOnly && !String(draftId).startsWith('local_')) {
+      await sb.delete('drafts', {'id=eq.': draftId});
+    }
   } catch(e) {
     console.warn('Gagal hapus draft saat load:', e);
   }
+  removeLocalDraft(draftId);
+  _drafts = _drafts.filter(function(d){ return d.id !== draftId; });
   await updateDraftBar();
   setTimeout(function() {
     var discEl = document.getElementById('cart-disc');
@@ -2802,7 +2880,10 @@ function deleteDraft(draftId) {
   showConfirm('Hapus draft "' + nama + '"?', async function() {
     showLoading();
     try {
-      await sb.delete('drafts', {'id=eq.': draftId});
+      if(!draft?._localOnly && !String(draftId).startsWith('local_')) {
+        await sb.delete('drafts', {'id=eq.': draftId});
+      }
+      removeLocalDraft(draftId);
       _drafts = _drafts.filter(function(d){ return d.id !== draftId; });
       await updateDraftBar();
       renderDraftList();
@@ -2814,19 +2895,7 @@ function deleteDraft(draftId) {
 }
 
 async function updateDraftBar() {
-  try {
-    const filter = {'gerai_id=eq.': currentGerai.id};
-    if(currentUser?.id) filter['user_id=eq.'] = currentUser.id;
-    _drafts = await sb.query('drafts', {
-      select: '*',
-      filter,
-      order: 'created_at.desc',
-      limit: 20
-    });
-  } catch(e) {
-    console.warn('updateDraftBar failed:', e);
-    _drafts = [];
-  }
+  await fetchDraftsForGerai();
   var bar = document.getElementById('draft-bar');
   var labelEl = document.getElementById('draft-bar-label');
   if(!bar) return;
@@ -2842,19 +2911,7 @@ async function openDraftPanel() {
   document.getElementById('draft-panel').classList.add('open');
   var el = document.getElementById('draft-list');
   if(el) el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">⏳ Memuat...</div>';
-  try {
-    const filter = {'gerai_id=eq.': currentGerai.id};
-    if(currentUser?.id) filter['user_id=eq.'] = currentUser.id;
-    _drafts = await sb.query('drafts', {
-      select: '*',
-      filter,
-      order: 'created_at.desc',
-      limit: 20
-    });
-  } catch(e) {
-    _drafts = [];
-    console.error('openDraftPanel error:', e);
-  }
+  await fetchDraftsForGerai();
   renderDraftList();
 }
 
