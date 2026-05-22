@@ -103,6 +103,23 @@ input,select,button,textarea{font-family:var(--font-body)}
 .nav-item.active{color:#0d9488}
 .nav-item.active::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:28px;height:2.5px;background:#0d9488;border-radius:2px 2px 0 0}
 .nav-icon{font-size:20px;line-height:1}
+.topbar-brand,.lp-brand,.loading-brand,.admin-topbar .brand{display:inline-flex;align-items:center;gap:8px}
+.topbar-brand::before,.lp-brand::before,.loading-brand::before,.admin-topbar .brand::before{
+  content:'';
+  width:30px;
+  height:30px;
+  border-radius:12px;
+  background:url('assets/icons/kasir.png') center/124% 124% no-repeat;
+  box-shadow:0 10px 26px rgba(37,99,235,.14);
+  flex:0 0 auto;
+  transition:transform .24s ease,box-shadow .24s ease,filter .24s ease;
+}
+.loading-brand::before{width:44px;height:44px;border-radius:18px}
+.topbar-brand:hover::before,.lp-brand:hover::before,.loading-brand:hover::before,.admin-topbar .brand:hover::before{
+  transform:translateY(-3px) scale(1.08) rotate(-3deg);
+  filter:saturate(1.12);
+  box-shadow:0 18px 38px rgba(37,99,235,.22);
+}
 
 /* ── PAGES (default — warm cream) ── */
 .page{display:none;flex:1;overflow-y:auto;padding-bottom:72px;overflow-x:hidden}
@@ -863,14 +880,28 @@ body[data-page="kasir"].has-low-stock #page-kasir.active{padding-top:0}
   color:#2563eb;
   transform:translateY(-2px);
 }
+.bottom-nav .nav-item:hover .app-icon,
+.bottom-nav .nav-item:focus-visible .app-icon{
+  animation:iconPop .52s cubic-bezier(.2,.9,.2,1);
+  transform:translateY(-3px) scale(1.12) rotate(-3deg);
+  filter:saturate(1.12) drop-shadow(0 12px 18px rgba(37,99,235,.18));
+}
 .bottom-nav .nav-item:active{
   animation:navTouch .28s ease-out;
 }
 .bottom-nav .nav-item.active .nav-icon{
   animation:navTouch .34s ease-out;
 }
+.bottom-nav .nav-item.active .app-icon{
+  box-shadow:0 12px 28px rgba(37,99,235,.18);
+}
 .bottom-nav .nav-item.active::before{
   animation:navGlow 2.2s ease-in-out infinite;
+}
+@keyframes iconPop{
+  0%{transform:translateY(0) scale(1) rotate(0)}
+  55%{transform:translateY(-4px) scale(1.16) rotate(-4deg)}
+  100%{transform:translateY(-3px) scale(1.12) rotate(-3deg)}
 }
 #page-kasir .mc-popular,
 .mc-popular{
@@ -1331,6 +1362,36 @@ body[data-page="kasir"].has-low-stock #page-kasir.active{padding-top:0}
   body[data-page="kasir"].has-low-stock #app-low-stock-banner{
     padding-top:4px!important;
   }
+}
+
+/* Itungaju blue 3D icon set. */
+.nav-icon.app-icon{
+  width:31px!important;
+  height:31px!important;
+  border-radius:12px;
+  display:block;
+  font-size:0!important;
+  line-height:0!important;
+  background-position:center;
+  background-size:124% 124%;
+  background-repeat:no-repeat;
+  box-shadow:0 8px 18px rgba(15,23,42,.06);
+  transition:transform .22s ease,filter .22s ease,box-shadow .22s ease;
+  will-change:transform;
+}
+.app-icon-kasir{background-image:url('assets/icons/kasir.png')}
+.app-icon-stok{background-image:url('assets/icons/stok.png')}
+.app-icon-verif{background-image:url('assets/icons/verif.png')}
+.app-icon-produk{background-image:url('assets/icons/produk.png')}
+.app-icon-pengeluaran{background-image:url('assets/icons/pengeluaran.png')}
+.app-icon-profil{background-image:url('assets/icons/profil.png')}
+.app-icon-laporan{background-image:url('assets/icons/laporan.png')}
+@media(min-width:900px){
+  .nav-icon.app-icon{width:38px!important;height:38px!important;border-radius:15px}
+}
+@media(max-width:639px){
+  .nav-icon.app-icon{width:27px!important;height:27px!important;border-radius:10px}
+  .bottom-nav .nav-item:hover .app-icon{transform:translateY(-2px) scale(1.08)}
 }
 </style>
 </head>
@@ -2646,14 +2707,14 @@ function renderBottomNav() {
   const isOwner = currentUser.role === 'owner' || currentUser.role === 'admin';
   const isKasir = currentUser.role === 'kasir';
   let nav = '';
-  nav += `<button class="nav-item active" onclick="goPage('kasir')" id="nav-kasir"><span class="nav-icon">🧾</span>Kasir</button>`;
-  nav += `<button class="nav-item" onclick="goPage('stok-request')" id="nav-stok-request"><span class="nav-icon">📦</span>Stok</button>`;
+  nav += `<button class="nav-item active" onclick="goPage('kasir')" id="nav-kasir"><span class="nav-icon app-icon app-icon-kasir"></span>Kasir</button>`;
+  nav += `<button class="nav-item" onclick="goPage('stok-request')" id="nav-stok-request"><span class="nav-icon app-icon app-icon-stok"></span>Stok</button>`;
   if(isOwner) {
-    nav += `<button class="nav-item" onclick="goPage('verif-stok')" id="nav-verif-stok"><span class="nav-icon">✅</span>Verifikasi</button>`;
-    nav += `<button class="nav-item" onclick="goPage('produk')" id="nav-produk"><span class="nav-icon">🏷️</span>Produk</button>`;
-    nav += `<button class="nav-item" onclick="goPage('pengeluaran')" id="nav-pengeluaran"><span class="nav-icon">💸</span>Pengeluaran</button>`;
-    nav += `<button class="nav-item" onclick="goPage('profil')" id="nav-profil"><span class="nav-icon">⚙️</span>Profil</button>`;
-    nav += `<button class="nav-item" onclick="goPage('laporan')" id="nav-laporan"><span class="nav-icon">📊</span>Laporan</button>`;
+    nav += `<button class="nav-item" onclick="goPage('verif-stok')" id="nav-verif-stok"><span class="nav-icon app-icon app-icon-verif"></span>Verifikasi</button>`;
+    nav += `<button class="nav-item" onclick="goPage('produk')" id="nav-produk"><span class="nav-icon app-icon app-icon-produk"></span>Produk</button>`;
+    nav += `<button class="nav-item" onclick="goPage('pengeluaran')" id="nav-pengeluaran"><span class="nav-icon app-icon app-icon-pengeluaran"></span>Pengeluaran</button>`;
+    nav += `<button class="nav-item" onclick="goPage('profil')" id="nav-profil"><span class="nav-icon app-icon app-icon-profil"></span>Profil</button>`;
+    nav += `<button class="nav-item" onclick="goPage('laporan')" id="nav-laporan"><span class="nav-icon app-icon app-icon-laporan"></span>Laporan</button>`;
   }
   document.getElementById('app-bottom-nav').innerHTML = nav;
 }
@@ -4302,4 +4363,3 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
