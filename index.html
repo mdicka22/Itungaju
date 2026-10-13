@@ -1774,6 +1774,15 @@ html[data-theme="dark"] .theme-toggle:hover{background:#303037!important}
   html[data-theme="dark"] :is(.bottom-nav,#screen-app .topbar,#page-kasir.active,#page-kasir .search-wrap){background:#000!important}
   html[data-theme="dark"] .bottom-nav{background:#121212!important}
 }
+
+/* ── Tab Stok (Permintaan / Verifikasi / Produk) & tombol profil topbar ── */
+.stok-tabs{display:flex;gap:4px;margin:12px 14px 0;padding:4px;background:var(--bg2);border:1px solid var(--border);border-radius:12px}
+.stok-tabs button{flex:1;min-width:0;padding:9px 6px;border:none;border-radius:9px;background:transparent;color:var(--text3);font-size:12px;font-weight:700;cursor:pointer;transition:all .18s;white-space:nowrap}
+.stok-tabs button.active{background:var(--card2);color:var(--gold);box-shadow:var(--s1)}
+.topbar-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:10px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .18s}
+.topbar-icon-btn:hover,.topbar-icon-btn.active{background:var(--gold-dim);color:var(--gold);border-color:var(--gold)}
+html[data-theme="dark"] .stok-tabs{background:#1c1c20;border-color:#2c2c31}
+html[data-theme="dark"] .stok-tabs button.active{background:#2c2c33;color:#b8d5ff}
 </style>
 </head>
 <body>
@@ -2015,6 +2024,9 @@ html[data-theme="dark"] .theme-toggle:hover{background:#303037!important}
     <div class="topbar-right">
       <span class="topbar-user" id="app-topbar-user"></span>
       <button type="button" class="theme-toggle" onclick="toggleTheme()" aria-label="Aktifkan mode gelap" title="Mode gelap">☾</button>
+      <button type="button" id="btn-profil" class="topbar-icon-btn" style="display:none" onclick="goPage('profil')" aria-label="Profil gerai" title="Profil gerai">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+      </button>
       <button id="btn-back-owner" onclick="backToOwnerDashboard()" style="display:none;padding:5px 10px;background:var(--gold-dim);border:1px solid rgba(37,99,235,.2);border-radius:8px;color:var(--gold);font-size:11px;font-weight:700;cursor:pointer">← Gerai</button>
       <button class="btn-logout" onclick="doLogout()">Keluar</button>
     </div>
@@ -2046,6 +2058,7 @@ html[data-theme="dark"] .theme-toggle:hover{background:#303037!important}
 
   <!-- PAGE: STOK REQUEST (kasir) -->
   <div id="page-stok-request" class="page">
+    <div class="stok-tabs"></div>
     <div class="page-header"><h2>Permintaan Stok</h2><p>Ajukan penambahan/pengurangan stok ke owner</p></div>
     <div class="section-card">
       <div class="section-title">Buat Permintaan Stok</div>
@@ -2096,6 +2109,7 @@ html[data-theme="dark"] .theme-toggle:hover{background:#303037!important}
 
   <!-- PAGE: VERIFIKASI STOK (owner only) -->
   <div id="page-verif-stok" class="page">
+    <div class="stok-tabs"></div>
     <div class="page-header"><h2>Verifikasi Stok</h2><p>Review permintaan stok dari kasir</p></div>
     <div class="section-card">
       <div class="section-title" style="display:flex;align-items:center;gap:8px">
@@ -2112,6 +2126,7 @@ html[data-theme="dark"] .theme-toggle:hover{background:#303037!important}
 
   <!-- PAGE: PRODUK (owner only) -->
   <div id="page-produk" class="page">
+    <div class="stok-tabs"></div>
     <div class="page-header"><h2>Manajemen Produk</h2><p>Kelola produk gerai Anda</p></div>
     <div class="section-card">
       <div class="section-title" id="prod-form-title">+ Tambah Produk Baru</div>
@@ -2651,6 +2666,63 @@ function selectIcon(cid, hid, ic) {
 // ══════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════
+const SESSION_KEY = 'itungaju_session';
+
+function persistSession() {
+  try {
+    if(!currentUser) return;
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      userId: currentUser.id,
+      geraiId: currentGerai?.id || null,
+      page: currentGerai ? (document.body.dataset.page || 'kasir') : null
+    }));
+  } catch(_) {}
+}
+
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch(_) {}
+}
+
+async function restoreSession() {
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch(_) {}
+  if(!s || !s.userId) return false;
+  try {
+    const users = await sb.query('users', { select: '*', filter: { 'id=eq.': s.userId } });
+    if(!users.length) { clearSession(); return false; }
+    const user = users[0];
+    currentUser = user;
+
+    if(user.role === 'admin') {
+      document.getElementById('admin-topbar-user').textContent = user.username;
+      await renderAdminDashboard();
+      showScreen('screen-admin');
+      return true;
+    }
+
+    const geraiId = user.role === 'owner' ? s.geraiId : user.gerai_id;
+    if(!geraiId) {
+      if(user.role === 'owner') { await loadOwnerDashboard(); return true; }
+      currentUser = null; clearSession(); return false;
+    }
+    const gerais = await sb.query('gerais', { select: '*', filter: { 'id=eq.': geraiId } });
+    if(!gerais.length || (user.role === 'owner' && gerais[0].owner_id !== user.id)) {
+      if(user.role === 'owner') { await loadOwnerDashboard(); return true; }
+      currentUser = null; clearSession(); return false;
+    }
+    currentGerai = gerais[0];
+    await loadApp();
+    const isOwnerRole = user.role === 'owner';
+    const pageOk = s.page && s.page !== 'kasir' && document.getElementById('page-' + s.page) && (isOwnerRole || s.page === 'stok-request');
+    if(pageOk) goPage(s.page);
+    return true;
+  } catch(e) {
+    console.warn('Restore sesi gagal:', e);
+    currentUser = null; currentGerai = null;
+    return false;
+  }
+}
+
 async function init() {
   try {
     // warm-up koneksi
@@ -2658,7 +2730,7 @@ async function init() {
   } catch(e) {
     console.warn('Init warm-up error:', e);
   }
-  showScreen('screen-landing');
+  if(!(await restoreSession())) showScreen('screen-landing');
 }
 
 function showLoginNew() {
@@ -2698,6 +2770,7 @@ async function doLogin() {
     if(user.password !== p) { showToast('Password salah!', 'error'); return; }
 
     currentUser = user;
+    persistSession();
 
     // Routing berdasarkan role
     if(user.role === 'admin') {
@@ -2735,6 +2808,8 @@ function goAdminLogin() {
 }
 
 function doLogout() {
+  clearSession();
+  clearTimeout(_draftSyncTimer);
   stopDraftPolling();
   currentUser = null; currentGerai = null;
   cart = {}; allProduk = []; selectedGeraiId = null;
@@ -2866,6 +2941,7 @@ async function doAdminLogin() {
       showToast('Username/password admin salah!', 'error'); return;
     }
     currentUser = users[0];
+    persistSession();
     document.getElementById('admin-topbar-user').textContent = u;
     await renderAdminDashboard();
     showScreen('screen-admin');
@@ -3083,6 +3159,7 @@ async function loadApp() {
 
     renderBottomNav();
     goPage('kasir');
+    persistSession();
     showScreen('screen-app');
     hideLoading(); // Hilangkan loading spinner — UI sudah tampil
 
@@ -3115,6 +3192,7 @@ function backToOwnerDashboard() {
   // Kembali ke owner dashboard tanpa logout
   currentGerai = null;
   cart = {}; allProduk = [];
+  persistSession();
   loadOwnerDashboard();
 }
 
@@ -3127,13 +3205,25 @@ function renderBottomNav() {
   nav += `<button class="nav-item active" onclick="goPage('kasir')" id="nav-kasir"><span class="nav-icon app-icon app-icon-kasir"></span>Kasir</button>`;
   nav += `<button class="nav-item" onclick="goPage('stok-request')" id="nav-stok-request"><span class="nav-icon app-icon app-icon-stok"></span>Stok</button>`;
   if(isOwner) {
-    nav += `<button class="nav-item" onclick="goPage('verif-stok')" id="nav-verif-stok"><span class="nav-icon app-icon app-icon-verif"></span>Verifikasi</button>`;
-    nav += `<button class="nav-item" onclick="goPage('produk')" id="nav-produk"><span class="nav-icon app-icon app-icon-produk"></span>Produk</button>`;
     nav += `<button class="nav-item" onclick="goPage('pengeluaran')" id="nav-pengeluaran"><span class="nav-icon app-icon app-icon-pengeluaran"></span>Pengeluaran</button>`;
-    nav += `<button class="nav-item" onclick="goPage('profil')" id="nav-profil"><span class="nav-icon app-icon app-icon-profil"></span>Profil</button>`;
     nav += `<button class="nav-item" onclick="goPage('laporan')" id="nav-laporan"><span class="nav-icon app-icon app-icon-laporan"></span>Laporan</button>`;
   }
   document.getElementById('app-bottom-nav').innerHTML = nav;
+  const btnProfil = document.getElementById('btn-profil');
+  if(btnProfil) btnProfil.style.display = isOwner ? '' : 'none';
+}
+
+const STOK_GROUP = ['stok-request', 'verif-stok', 'produk'];
+const STOK_TABS = [['stok-request', 'Permintaan'], ['verif-stok', 'Verifikasi'], ['produk', 'Produk']];
+
+function renderStokTabs(active) {
+  const isOwner = currentUser && (currentUser.role === 'owner' || currentUser.role === 'admin');
+  document.querySelectorAll('.stok-tabs').forEach(el => {
+    el.style.display = isOwner ? '' : 'none';
+    el.innerHTML = STOK_TABS.map(([p, label]) =>
+      `<button type="button" class="${p === active ? 'active' : ''}" onclick="goPage('${p}')">${label}</button>`
+    ).join('');
+  });
 }
 
 function goPage(p) {
@@ -3141,9 +3231,13 @@ function goPage(p) {
   document.querySelectorAll('#screen-app .page').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('#screen-app .nav-item').forEach(el => el.classList.remove('active'));
   const page = document.getElementById('page-' + p);
-  const nav = document.getElementById('nav-' + p);
+  const nav = document.getElementById('nav-' + (STOK_GROUP.includes(p) ? 'stok-request' : p));
   if(page) page.classList.add('active');
   if(nav) nav.classList.add('active');
+  if(STOK_GROUP.includes(p)) renderStokTabs(p);
+  const btnProfil = document.getElementById('btn-profil');
+  if(btnProfil) btnProfil.classList.toggle('active', p === 'profil');
+  persistSession();
 
   if(p === 'kasir') { renderKasir(); updateDraftBar(); startDraftPolling(); }
   else { stopDraftPolling(); }
@@ -3230,7 +3324,7 @@ function setCartQty(id, val) {
   updateFAB(); renderCartItems();
 }
 
-function clearCart() { cart = {}; _activeDraftId = null; updateFAB(); closeCart(); renderKasir(); renderCartItems(); }
+function clearCart() { clearTimeout(_draftSyncTimer); cart = {}; _activeDraftId = null; updateDraftIndicator(); updateFAB(); closeCart(); renderKasir(); renderCartItems(); }
 
 /* ══════════════════════════════════════════════════
    DRAFT PESANAN — Supabase
@@ -3315,13 +3409,26 @@ async function fetchDraftsForGerai(force) {
 async function saveDraft() {
   if(!Object.keys(cart).length) { showToast('Keranjang kosong!', 'error'); return; }
   const disc = parseFloat(document.getElementById('cart-disc').value) || 0;
-  const raw = prompt('Nama pesanan (opsional, Enter untuk skip):', '');
+  const active = _activeDraftId ? _drafts.find(function(d){ return String(d.id) === String(_activeDraftId); }) : null;
+  const raw = prompt('Nama pesanan (opsional, Enter untuk skip):', active ? active.label : '');
   if(raw === null) return;
-  const label = raw.trim() || ('Pesanan ' + new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'}));
-  const cartItems = Object.keys(cart).map(function(id) {
-    var p = allProduk.find(function(x){ return x.id === id; });
-    return p ? {id: id, nama: p.nama, qty: cart[id], harga: p.harga_jual} : null;
-  }).filter(Boolean);
+  const label = raw.trim() || (active ? active.label : ('Pesanan ' + new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})));
+  const cartItems = buildDraftItems();
+  if(active) {
+    clearTimeout(_draftSyncTimer);
+    const patch = { label, cart_data: Object.assign({}, cart), disc, items: cartItems };
+    showLoading();
+    try {
+      if(!isLocalDraftId(active.id)) await sb.update('drafts', patch, {'id=eq.': active.id});
+      addLocalDraft(Object.assign({}, active, patch));
+      clearCart();
+      await updateDraftBar();
+      showToast('Draft "' + label + '" diperbarui ✓', 'success');
+    } catch(e) {
+      showToast('Gagal memperbarui draft: ' + e.message, 'error');
+    } finally { hideLoading(); }
+    return;
+  }
   const draftPayload = {
     gerai_id: currentGerai.id,
     user_id: currentUser.id,
@@ -3350,26 +3457,85 @@ async function saveDraft() {
   } finally { hideLoading(); }
 }
 
+function buildDraftItems() {
+  return Object.keys(cart).map(function(id) {
+    var p = allProduk.find(function(x){ return x.id === id; });
+    return p ? {id: id, nama: p.nama, qty: cart[id], harga: p.harga_jual} : null;
+  }).filter(Boolean);
+}
+
+function isLocalDraftId(id) { return String(id).startsWith('local_'); }
+
+function updateDraftIndicator() {
+  var t = document.querySelector('#app-cart-drawer .drawer-title');
+  if(!t) return;
+  var d = _activeDraftId ? _drafts.find(function(x){ return String(x.id) === String(_activeDraftId); }) : null;
+  t.textContent = d ? 'Keranjang · Draft: ' + d.label : 'Keranjang';
+}
+
+let _draftSyncTimer = null;
+let _draftSig = '';
+function draftSignature() {
+  return JSON.stringify([cart, parseFloat(document.getElementById('cart-disc').value) || 0]);
+}
+
+function scheduleDraftSync() {
+  if(!_activeDraftId) return;
+  clearTimeout(_draftSyncTimer);
+  _draftSyncTimer = setTimeout(syncActiveDraft, 600);
+}
+
+async function syncActiveDraft() {
+  var id = _activeDraftId;
+  if(!id || !currentGerai || !Object.keys(cart).length) return;
+  var sig = draftSignature();
+  if(sig === _draftSig) return;
+  _draftSig = sig;
+  var patch = {
+    cart_data: Object.assign({}, cart),
+    disc: parseFloat(document.getElementById('cart-disc').value) || 0,
+    items: buildDraftItems()
+  };
+  var idx = _drafts.findIndex(function(d){ return String(d.id) === String(id); });
+  if(idx < 0) return;
+  _drafts[idx] = Object.assign({}, _drafts[idx], patch);
+  addLocalDraft(_drafts[idx]);
+  if(!isLocalDraftId(id)) {
+    try { await sb.update('drafts', patch, {'id=eq.': id}); }
+    catch(e) { console.warn('Auto-simpan draft gagal:', e); }
+  }
+}
+
+async function discardActiveDraft() {
+  var id = _activeDraftId;
+  clearTimeout(_draftSyncTimer);
+  if(!id) return;
+  if(!isLocalDraftId(id)) {
+    try { await sb.delete('drafts', {'id=eq.': id}); } catch(e) { console.warn('Gagal hapus draft selesai:', e); }
+  }
+  removeLocalDraft(id);
+  _drafts = _drafts.filter(function(d){ return String(d.id) !== String(id); });
+  _activeDraftId = null;
+  await updateDraftBar(true);
+}
+
 async function loadDraft(draftId) {
   var draft = _drafts.find(function(d){ return String(d.id) === String(draftId); });
   if(!draft) { showToast('Draft tidak ditemukan', 'error'); return; }
+  clearTimeout(_draftSyncTimer);
   cart = Object.assign({}, draft.cart_data || {});
   _activeDraftId = draftId;
   closeDraftPanel();
-  if(!draft._localOnly && !String(draftId).startsWith('local_')) {
-    try { await sb.delete('drafts', {'id=eq.': draftId}); } catch(e) { console.warn('Gagal hapus draft saat load:', e); }
-  }
-  removeLocalDraft(draftId);
-  _drafts = _drafts.filter(function(d){ return String(d.id) !== String(draftId); });
-  await updateDraftBar();
   setTimeout(function() {
     var discEl = document.getElementById('cart-disc');
     if(discEl) discEl.value = draft.disc || 0;
     updateCartTotal();
     updateFAB();
     renderKasir();
+    _draftSig = draftSignature();
+    updateDraftIndicator();
     openCart();
-    showToast('Draft "' + draft.label + '" dilanjutkan ✓', 'success');
+    showToast('Draft "' + draft.label + '" dibuka. Perubahan otomatis tersimpan ✓', 'success');
   }, 150);
 }
 
@@ -3490,6 +3656,7 @@ function updateFAB() {
   const fab = document.getElementById('app-cart-fab');
   if(count > 0) { fab.classList.remove('hidden'); document.getElementById('app-fab-label').textContent = count + ' · ' + rp(total); }
   else fab.classList.add('hidden');
+  scheduleDraftSync();
 }
 
 function openCart() {
@@ -3530,6 +3697,7 @@ function updateCartTotal() {
   document.getElementById('cart-subtotal').textContent = rp(sub);
   document.getElementById('cart-disc-show').textContent = '- ' + rp(disc);
   document.getElementById('cart-total').textContent = rp(total);
+  scheduleDraftSync();
   const insight = document.getElementById('cart-insights');
   if(insight) {
     insight.innerHTML = `
@@ -3633,8 +3801,8 @@ async function prosesTransaksi() {
     document.getElementById('modal-kembalian').textContent = payMethod === 'tunai' ? ('Kembalian: ' + rp(kembalian)) : '';
     document.getElementById('modal-sukses').classList.add('open');
 
+    await discardActiveDraft();
     clearCart();
-    _activeDraftId = null;
     document.getElementById('cart-disc').value = '';
     checkLowStock();
   } catch(e) {
